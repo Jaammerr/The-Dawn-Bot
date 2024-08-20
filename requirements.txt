@@ -11,3 +11,4 @@ inquirer~=3.3.0
 colorama~=0.4.6
 better_proxy
 tortoise-orm
+imap_tools
