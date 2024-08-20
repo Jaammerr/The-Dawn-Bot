@@ -1,0 +1,13 @@
+names~=0.3.0
+curl_cffi~=0.7.1
+pytz~=2024.1
+loguru~=0.7.2
+httpx~=0.27.0
+urllib3~=2.2.2
+art~=6.2
+PyYAML~=6.0.2
+pydantic~=2.8.2
+inquirer~=3.3.0
+colorama~=0.4.6
+better_proxy
+tortoise-orm

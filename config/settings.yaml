@@ -1,0 +1,12 @@
+threads: 3 # number of threads to run (min 1)
+
+anti_captcha_api_key: 05f16 # https://anti-captcha.com/ API key
+keepalive_interval: 120 # seconds
+
+# You can add your own imap settings here
+imap_settings:
+  rambler.ru: imap.rambler.ru
+  hotmail.com: imap-mail.outlook.com
+  outlook.com: imap-mail.outlook.com
+  mail.ru: imap.mail.ru
+  gmail.com: imap.gmail.com
