@@ -70,7 +70,7 @@ def get_accounts_to_register():
     proxies = get_proxies()
     proxy_cycle = cycle(proxies) if proxies else None
     accounts = read_file(
-        os.path.join(CONFIG_DATA_PATH, "register.txt"), check_empty=True
+        os.path.join(CONFIG_DATA_PATH, "register.txt"), check_empty=False
     )
 
     for account in accounts:
@@ -85,7 +85,7 @@ def get_accounts_to_register():
 def get_accounts_to_farm():
     proxies = get_proxies()
     proxy_cycle = cycle(proxies) if proxies else None
-    accounts = read_file(os.path.join(CONFIG_DATA_PATH, "farm.txt"), check_empty=True)
+    accounts = read_file(os.path.join(CONFIG_DATA_PATH, "farm.txt"), check_empty=False)
 
     for account in accounts:
         email, password = account.split(":")
