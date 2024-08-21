@@ -110,21 +110,7 @@ class Bot(DawnExtensionAPI):
                 )
 
             await self.perform_farming_actions()
-
-        except APIError as error:
-            if "message" in str(error):
-                try:
-                    message = json.loads(str(error))["message"]
-                    if message == "refresh your captcha!!":
-                        logger.warning(
-                            f"Account: {self.account_data.email} | Captcha expired, re-solving..."
-                        )
-                        return await self.process_farming()
-
-                except json.JSONDecodeError:
-                    raise error
-
-
+            
         except Exception as error:
             logger.error(
                 f"Account: {self.account_data.email} | Failed to farm: {error}"
