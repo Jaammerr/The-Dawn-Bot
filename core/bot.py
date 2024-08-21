@@ -1,4 +1,5 @@
 import asyncio
+import json
 from datetime import datetime, timedelta
 
 import pytz
@@ -9,6 +10,7 @@ from models import Account
 from .api import DawnExtensionAPI
 from utils import check_email_for_link, check_if_email_valid
 from database import Accounts
+from .exceptions.base import APIError
 
 
 class Bot(DawnExtensionAPI):
@@ -70,15 +72,6 @@ class Bot(DawnExtensionAPI):
                 logger.success(
                     f"Account: {self.account_data.email} | Successfully confirmed registration"
                 )
-                await Accounts.create_account(
-                    email=self.account_data.email,
-                    headers=self.session.headers,
-                    wallet_private_key=(
-                        self.wallet_data["wallet_private_key"]
-                        if self.wallet_data
-                        else None
-                    ),
-                )
                 return True
 
             logger.error(
@@ -99,7 +92,7 @@ class Bot(DawnExtensionAPI):
     async def process_farming(self):
         try:
             db_account_data = await Accounts.get_account(email=self.account_data.email)
-            if db_account_data is None:
+            if db_account_data is None or db_account_data.headers is None:
                 await self.login_new_account()
             else:
                 await self.handle_existing_account(db_account_data)
@@ -117,6 +110,20 @@ class Bot(DawnExtensionAPI):
                 )
 
             await self.perform_farming_actions()
+
+        except APIError as error:
+            if "message" in str(error):
+                try:
+                    message = json.loads(str(error))["message"]
+                    if message == "refresh your captcha!!":
+                        logger.warning(
+                            f"Account: {self.account_data.email} | Captcha expired, re-solving..."
+                        )
+                        return await self.process_farming()
+
+                except json.JSONDecodeError:
+                    raise error
+
 
         except Exception as error:
             logger.error(

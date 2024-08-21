@@ -156,7 +156,7 @@ class DawnExtensionAPI:
             "mobile": "",
             "password": self.account_data.password,
             "country": "+91",
-            "referralCode": "hegbhf",
+            "referralCode": "",
             "puzzle_id": puzzle_id,
             "ans": answer,
         }

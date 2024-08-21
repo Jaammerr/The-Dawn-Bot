@@ -26,7 +26,7 @@ async def check_email_for_link(
     imap_server: str,
     email: str,
     password: str,
-    max_attempts: int = 4,
+    max_attempts: int = 8,
     delay_seconds: int = 5,
 ) -> Optional[str]:
     link_pattern = r"https://api\.moramba\.io:3031/chromeapi/dawn/v1/user/verifylink\?key=[a-f0-9-]+"
