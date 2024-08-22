@@ -79,6 +79,22 @@ class Bot(DawnExtensionAPI):
             )
             return False
 
+        except APIError as error:
+            if "message" in str(error):
+                try:
+                    message = json.loads(str(error))["message"]
+                    if message == "refresh your captcha!!":
+                        logger.warning(
+                            f"Account: {self.account_data.email} | Captcha expired, re-solving..."
+                        )
+                        return await self.process_farming()
+
+                except json.JSONDecodeError:
+                    logger.error(
+                        f"Account: {self.account_data.email} | Failed to farm: {error}"
+                    )
+                    return False
+
         except Exception as error:
             logger.error(
                 f"Account: {self.account_data.email} | Failed to register: {error}"
@@ -122,8 +138,10 @@ class Bot(DawnExtensionAPI):
                         return await self.process_farming()
 
                 except json.JSONDecodeError:
-                    raise error
-
+                    logger.error(
+                        f"Account: {self.account_data.email} | Failed to farm: {error}"
+                    )
+                    return False
 
         except Exception as error:
             logger.error(
