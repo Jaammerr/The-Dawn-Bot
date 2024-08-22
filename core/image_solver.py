@@ -30,7 +30,9 @@ class AntiCaptchaImageSolver:
             resp = await self.client.post(self.create_task_url, json=captcha_data)
 
             if resp.status_code == 200:
-                return await self.get_captcha_result(resp.json().get("taskId"))
+                if resp.json().get("errorId") == 0:
+                    return await self.get_captcha_result(resp.json().get("taskId"))
+                return resp.json().get("errorDescription"), False
             else:
                 return "Incorrect data", False
 
