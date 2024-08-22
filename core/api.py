@@ -59,10 +59,16 @@ class DawnExtensionAPI:
         retry_delay: float = 1.0,
     ):
         def verify_response(response_data: dict | list) -> dict | list:
-            if "success" in str(response_data):
+            if "status" in str(response_data):
+                if isinstance(response_data, dict):
+                    if response_data.get("status") is False:
+                        raise APIError(f"API returned an error: {response_data}")
+
+            elif "success" in str(response_data):
                 if isinstance(response_data, dict):
                     if response_data.get("success") is False:
                         raise APIError(f"API returned an error: {response_data}")
+
             return response_data
 
         for attempt in range(max_retries):
