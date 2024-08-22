@@ -31,11 +31,11 @@ def read_file(
         exit(1)
 
     if is_yaml:
-        with open(file_path, "r") as file:
+        with open(file_path, "r", encoding="utf-8") as file:
             data = yaml.safe_load(file)
         return data
 
-    with open(file_path, "r") as file:
+    with open(file_path, "r", encoding="utf-8") as file:
         data = file.readlines()
 
     return [line.strip() for line in data]
