@@ -74,12 +74,17 @@ def get_accounts_to_register():
     )
 
     for account in accounts:
-        email, password = account.split(":")
-        yield Account(
-            email=email,
-            password=password,
-            proxy=next(proxy_cycle) if proxy_cycle else None,
-        )
+        try:
+            email, password = account.split(":")
+            yield Account(
+                email=email,
+                password=password,
+                proxy=next(proxy_cycle) if proxy_cycle else None,
+            )
+
+        except ValueError:
+            logger.error(f"Failed to parse account: {account}")
+            exit(1)
 
 
 def get_accounts_to_farm():
@@ -88,12 +93,17 @@ def get_accounts_to_farm():
     accounts = read_file(os.path.join(CONFIG_DATA_PATH, "farm.txt"), check_empty=False)
 
     for account in accounts:
-        email, password = account.split(":")
-        yield Account(
-            email=email,
-            password=password,
-            proxy=next(proxy_cycle) if proxy_cycle else None,
-        )
+        try:
+            email, password = account.split(":")
+            yield Account(
+                email=email,
+                password=password,
+                proxy=next(proxy_cycle) if proxy_cycle else None,
+            )
+
+        except ValueError:
+            logger.error(f"Failed to parse account: {account}")
+            exit(1)
 
 
 def validate_domains(accounts: list[Account], domains: dict):
@@ -112,21 +122,26 @@ def validate_domains(accounts: list[Account], domains: dict):
 
 
 def load_config() -> Config:
-    reg_accounts = list(get_accounts_to_register())
-    farm_accounts = list(get_accounts_to_farm())
+    try:
+        reg_accounts = list(get_accounts_to_register())
+        farm_accounts = list(get_accounts_to_farm())
 
-    if not reg_accounts and not farm_accounts:
-        logger.error("No accounts found in data files")
+        if not reg_accounts and not farm_accounts:
+            logger.error("No accounts found in data files")
+            exit(1)
+
+        config = Config(
+            **get_params(),
+            accounts_to_farm=farm_accounts,
+            accounts_to_register=reg_accounts,
+        )
+
+        if reg_accounts:
+            accounts = validate_domains(reg_accounts, config.imap_settings)
+            config.accounts_to_register = accounts
+
+        return config
+
+    except Exception as exc:
+        logger.error(f"Failed to load config: {exc}")
         exit(1)
-
-    config = Config(
-        **get_params(),
-        accounts_to_farm=farm_accounts,
-        accounts_to_register=reg_accounts,
-    )
-
-    if reg_accounts:
-        accounts = validate_domains(reg_accounts, config.imap_settings)
-        config.accounts_to_register = accounts
-
-    return config
