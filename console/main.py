@@ -16,9 +16,9 @@ class Console:
     MODULES = (
         "Register",
         "Farm (cycle)",
-        "Farm (one time)",
+        # "Farm (one time)",
         "Complete tasks",
-        "Export wallets",
+        # "Export wallets",
         "Exit",
     )
     MODULES_DATA = {

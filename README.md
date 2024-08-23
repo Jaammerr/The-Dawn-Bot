@@ -1,4 +1,4 @@
-# Bot for Dawn Extension
+# Bot for Dawn Extension [1.1]
 
 ## 🔗 Links
 
@@ -11,16 +11,13 @@
 ## 🤖 | Features:
 - **Auto registration/login**
 - **Auto-completion of all tasks**
-- **Auto-farm points (cycle or one-time)**
-- **Auto-export private keys from accounts**
+- **Auto-farm points**
 
 
 ## 📝 | Description:
 [FARM MODULES]
 
-2 farm modules (cycle, one-time) are made so that it is not necessary to constantly send keepalive requests to the server. For some reason, after registration and the first request, the server automatically awards points. Most likely this is a mistake on the developers' side and will be fixed soon.
-
-The expansion delay between keepalive requests is 120 seconds, so it is recommended to use +- the same value if you are using CYCLE FARMING MODULE.
+The expansion delay between keepalive requests is 120 seconds, so it is recommended to use +- the same value in CYCLE FARMING MODULE.
 
 [CAPTCHA]
 
@@ -30,13 +27,9 @@ When registering and logging in, there is a mathematical captcha, so do not forg
 
 A database is used to save time and optimize. In this case, the script do not need to solve the captcha every time log in. (The old authorization token is used)
 
-[EXPORT WALLETS]
-
-Export of wallets is available, since the server automatically creates wallets for each account. Only the private key is exported.
-
 [EMAILS]
 
-If you receive an error that your mail is not supported, go to the configuration and add an IMAP server for your mail domain. It is important to remember that popular services use application passwords instead of email passwords. For example, for Gmail or Outlook mail, you need to enter not a password, but an application code, otherwise you will receive an error.
+If you receive an error that your mail is not supported, go to the configuration and add an IMAP server for your mail domain. It is important to remember that popular services use application passwords instead of email passwords. For example, for Gmail mail, you need to enter not a password, but an application code, otherwise you will receive an error.
 
 
 ## ⚙️ Config (config > settings.yaml):

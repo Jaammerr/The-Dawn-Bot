@@ -123,8 +123,9 @@ class DawnExtensionAPI:
 
             except APIError:
                 raise
+
             except Exception as error:
-                if attempt == max_retries - 1:  # Если это последняя попытка
+                if attempt == max_retries - 1:
                     raise APIError(
                         f"Failed to send request after {max_retries} attempts: {error}"
                     )
@@ -174,10 +175,12 @@ class DawnExtensionAPI:
 
     async def keepalive(self) -> dict | str:
         headers = {
-            "Referer": "",
-            "Authorization": self.session.headers["Berear"],
-            "User-Agent": self.session.headers["user-agent"],
-            "Content-Type": "application/json",
+            'accept': '*/*',
+            'accept-language': 'en-US,en;q=0.9,ru;q=0.8',
+            'authorization': f'Berear {self.session.headers["Berear"]}',
+            'content-type': 'application/json',
+            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'user-agent': self.session.headers["user-agent"],
         }
 
         json_data = {
