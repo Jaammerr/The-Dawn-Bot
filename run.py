@@ -21,15 +21,18 @@ async def run_module_safe(
 
 async def process_registration(bot: Bot) -> tuple[str, str, bool]:
     status = await bot.process_registration()
+    await bot.close_session()
     return bot.account_data.email, bot.account_data.password, status
 
 
 async def process_farming(bot: Bot) -> None:
     await bot.process_farming()
+    await bot.close_session()
 
 
 async def process_complete_tasks(bot: Bot) -> None:
     await bot.process_complete_tasks()
+    await bot.close_session()
 
 
 async def export_account_wallet(bot: Bot) -> tuple[str, str]:

@@ -62,12 +62,12 @@ class DawnExtensionAPI:
             if "status" in str(response_data):
                 if isinstance(response_data, dict):
                     if response_data.get("status") is False:
-                        raise APIError(f"API returned an error: {response_data}")
+                        raise APIError(f"API returned an error: {response_data}", response_data)
 
             elif "success" in str(response_data):
                 if isinstance(response_data, dict):
                     if response_data.get("success") is False:
-                        raise APIError(f"API returned an error: {response_data}")
+                        raise APIError(f"API returned an error: {response_data}", response_data)
 
             return response_data
 

@@ -1,5 +1,4 @@
 import asyncio
-import json
 from datetime import datetime, timedelta
 
 import pytz
@@ -80,19 +79,13 @@ class Bot(DawnExtensionAPI):
             return False
 
         except APIError as error:
-            try:
-                message = json.loads(str(error))["message"].strip()
-                if message == "refresh your captcha!!" or message == "Incorrect answer. Try again!":
-                    logger.warning(
-                        f"Account: {self.account_data.email} | Captcha expired, re-solving..."
-                    )
-                    return await self.process_farming()
-
-            except json.JSONDecodeError:
-                logger.error(
-                    f"Account: {self.account_data.email} | Failed to farm: {error}"
+            if error.error_message in error.BASE_MESSAGES:
+                logger.warning(
+                    f"Account: {self.account_data.email} | Captcha expired or answer incorrect, re-solving..."
                 )
-                return False
+                return await self.process_registration()
+
+            logger.error(f"Account: {self.account_data.email} | Failed to register: {error}")
 
         except Exception as error:
             logger.error(
@@ -127,25 +120,20 @@ class Bot(DawnExtensionAPI):
             await self.perform_farming_actions()
 
         except APIError as error:
-            try:
-                message = json.loads(str(error))["message"].strip()
-                if message == "refresh your captcha!!" or message == "Incorrect answer. Try again!":
-                    logger.warning(
-                        f"Account: {self.account_data.email} | Captcha expired, re-solving..."
-                    )
-                    return await self.process_farming()
-
-            except json.JSONDecodeError:
-                logger.error(
-                    f"Account: {self.account_data.email} | Failed to farm: {error}"
+            if error.error_message in error.BASE_MESSAGES:
+                logger.warning(
+                    f"Account: {self.account_data.email} | Captcha expired or answer incorrect, re-solving..."
                 )
-                return False
+                return await self.process_farming()
+
+            logger.error(f"Account: {self.account_data.email} | Failed to farm: {error}")
 
         except Exception as error:
             logger.error(
                 f"Account: {self.account_data.email} | Failed to farm: {error}"
             )
-            return False
+
+        return False
 
     async def process_complete_tasks(self):
         try:
@@ -204,6 +192,12 @@ class Bot(DawnExtensionAPI):
     async def export_account_wallet(self) -> str:
         return await Accounts.get_account_private_key(email=self.account_data.email)
 
+    async def close_session(self):
+        try:
+            await self.session.close()
+        except Exception as error:
+            logger.debug(f"Account: {self.account_data.email} | Failed to close session: {error}")
+
     async def perform_farming_actions(self):
         await self.keepalive()
         logger.success(f"Account: {self.account_data.email} | Sent keepalive request")
@@ -217,8 +211,10 @@ class Bot(DawnExtensionAPI):
             logger.error(
                 f"Account: {self.account_data.email} | Failed to get user info: {error}"
             )
+
         finally:
             new_sleep_until = self.get_sleep_until()
             await Accounts.set_sleep_until(
                 email=self.account_data.email, sleep_until=new_sleep_until
             )
+
