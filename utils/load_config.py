@@ -13,7 +13,6 @@ CONFIG_PARAMS = os.path.join(CONFIG_PATH, "settings.yaml")
 REQUIRED_DATA_FILES = ("accounts.txt", "proxies.txt")
 REQUIRED_PARAMS_FIELDS = (
     "threads",
-    "anti_captcha_api_key",
     "keepalive_interval",
     "imap_settings",
 )

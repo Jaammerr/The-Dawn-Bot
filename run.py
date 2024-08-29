@@ -1,8 +1,8 @@
 import asyncio
 import random
 import sys
-from typing import Callable, Coroutine, Any
 
+from typing import Callable, Coroutine, Any
 from loguru import logger
 from loader import config, semaphore
 from core.bot import Bot
@@ -10,6 +10,7 @@ from models import Account
 from utils import export_results, setup
 from console import Console
 from database import initialize_database
+
 
 
 async def run_module_safe(
@@ -35,8 +36,8 @@ async def process_complete_tasks(bot: Bot) -> None:
     await bot.close_session()
 
 
-async def export_account_wallet(bot: Bot) -> tuple[str, str]:
-    return bot.account_data.email, await bot.export_account_wallet()
+# async def export_account_wallet(bot: Bot) -> tuple[str, str]:
+#     return bot.account_data.email, await bot.export_account_wallet()
 
 
 async def run_module(accounts, process_func, export_name: str = None):
@@ -82,14 +83,14 @@ async def run():
             random.shuffle(config.accounts_to_farm)
             await run_module(config.accounts_to_farm, process_complete_tasks)
 
-        elif config.module == "export_wallets":
-            if not config.accounts_to_farm:
-                logger.error("No accounts to export wallets")
-                break
-
-            await run_module(
-                config.accounts_to_farm, export_account_wallet, "export_wallets"
-            )
+        # elif config.module == "export_wallets":
+        #     if not config.accounts_to_farm:
+        #         logger.error("No accounts to export wallets")
+        #         break
+        #
+        #     await run_module(
+        #         config.accounts_to_farm, export_account_wallet, "export_wallets"
+        #     )
 
         input("\n\nPress Enter to continue...")
 

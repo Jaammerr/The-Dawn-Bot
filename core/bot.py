@@ -24,13 +24,13 @@ class Bot(DawnExtensionAPI):
                 f"Account: {self.account_data.email} | Got puzzle image, solving..."
             )
             answer, solved = await self.solve_puzzle(image)
-            if solved:
+            if solved and str(answer).isdigit():
                 logger.success(
                     f"Account: {self.account_data.email} | Puzzle solved: {answer}"
                 )
-                return puzzle_id, answer
+                return puzzle_id, str(answer)
             logger.error(
-                f"Account: {self.account_data.email} | Failed to solve puzzle: {answer} | Retrying..."
+                f"Account: {self.account_data.email} | Failed to solve puzzle | Retrying..."
             )
 
     async def process_registration(self):

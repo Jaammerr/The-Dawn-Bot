@@ -12,3 +12,7 @@ colorama~=0.4.6
 better_proxy
 tortoise-orm
 imap_tools
+numpy~=1.26.4
+paddleocr~=2.8.1
+pillow~=10.4.0
+paddlepaddle

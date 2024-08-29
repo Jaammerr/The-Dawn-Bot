@@ -8,7 +8,7 @@ from curl_cffi.requests import AsyncSession
 
 from models import Account
 from .exceptions.base import APIError
-from loader import solver
+from loader import ocr_solver
 
 
 class DawnExtensionAPI:
@@ -135,7 +135,7 @@ class DawnExtensionAPI:
 
     @staticmethod
     async def solve_puzzle(image: str) -> Tuple[str | int, bool]:
-        response = await solver.solve(image)
+        response = ocr_solver.start(image)
         return response
 
     async def get_puzzle_id(self) -> str:

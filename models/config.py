@@ -1,5 +1,5 @@
 from better_proxy import Proxy
-from pydantic import BaseModel, PositiveInt, HttpUrl, PositiveFloat
+from pydantic import BaseModel, PositiveInt
 
 
 class Account(BaseModel):
@@ -20,6 +20,5 @@ class Config(BaseModel):
     threads: PositiveInt
     imap_settings: dict[str, str]
 
-    anti_captcha_api_key: str
     keepalive_interval: PositiveInt
     module: str = ""
