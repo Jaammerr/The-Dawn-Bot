@@ -1,4 +1,4 @@
-# Bot for Dawn Extension [1.1]
+# Bot for Dawn Extension [1.2]
 
 ## 🔗 Links
 
@@ -21,7 +21,7 @@ The expansion delay between keepalive requests is 120 seconds, so it is recommen
 
 [CAPTCHA]
 
-When registering and logging in, there is a mathematical captcha, so do not forget to top up the anti-captcha balance (https://anti-captcha.com/).
+In this version captcha is solved using OCR Paddle (automatic image recognition), so be careful with a large number of threads
 
 [DATABASE]
 
@@ -54,7 +54,6 @@ Proxies: data > proxies.txt | Format:
 | Name              | Description                                      |
 |-------------------|--------------------------------------------------|
 | threads           | Number of accounts that will work simultaneously |
-| anti_captcha_api_key             | anti-captcha api key                             |
 | keepalive_interval             | delay between keepalive requests in seconds      |
 | imap_settings             | imap servers for your mails                      |
 
