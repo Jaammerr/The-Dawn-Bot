@@ -1,4 +1,4 @@
-# Bot for Dawn Extension [1.2]
+# Bot for Dawn Extension [1.3]
 
 ## 🔗 Links
 
@@ -21,7 +21,7 @@ The expansion delay between keepalive requests is 120 seconds, so it is recommen
 
 [CAPTCHA]
 
-In this version captcha is solved using OCR Paddle (automatic image recognition), so be careful with a large number of threads
+In this version, the captcha is solved using services (2captcha, anti-captcha) because the developers changed the mathematical captcha to letters, numbers and symbols. I tried to write my own solution, but alas, the result is too bad. Capsolver also solves very badly.
 
 [DATABASE]
 
@@ -51,11 +51,14 @@ Proxies: data > proxies.txt | Format:
 ```
 
 
-| Name              | Description                                      |
-|-------------------|--------------------------------------------------|
-| threads           | Number of accounts that will work simultaneously |
-| keepalive_interval             | delay between keepalive requests in seconds      |
-| imap_settings             | imap servers for your mails                      |
+| Name              | Description                                           |
+|-------------------|-------------------------------------------------------|
+| threads           | Number of accounts that will work simultaneously      |
+| keepalive_interval             | delay between keepalive requests in seconds           |
+| imap_settings             | imap servers for your mails                           |
+| captcha_service             | service for solving captcha (2captcha or anticaptcha) |
+| two_captcha_api_key             | 2captcha api key                                      |
+| anti_captcha_api_key             | anti-captcha api key                                  |
 
 
 

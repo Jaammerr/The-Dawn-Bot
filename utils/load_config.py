@@ -15,6 +15,7 @@ REQUIRED_PARAMS_FIELDS = (
     "threads",
     "keepalive_interval",
     "imap_settings",
+    "captcha_module"
 )
 
 
@@ -138,6 +139,16 @@ def load_config() -> Config:
         if reg_accounts:
             accounts = validate_domains(reg_accounts, config.imap_settings)
             config.accounts_to_register = accounts
+
+        if config.captcha_module == "2captcha":
+            if not config.two_captcha_api_key:
+                logger.error("2Captcha API key is missing")
+                exit(1)
+
+        elif config.captcha_module == "anticaptcha":
+            if not config.anti_captcha_api_key:
+                logger.error("AntiCaptcha API key is missing")
+                exit(1)
 
         return config
 

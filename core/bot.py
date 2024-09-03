@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime, timedelta
+from typing import Tuple, Any
 
 import pytz
 from loguru import logger
@@ -16,24 +17,31 @@ class Bot(DawnExtensionAPI):
     def __init__(self, account: Account):
         super().__init__(account)
 
-    async def get_captcha_data(self) -> tuple[str, str]:
+    async def get_captcha_data(self) -> tuple[str, Any, Any | None]:
         while True:
-            puzzle_id = await self.get_puzzle_id()
-            image = await self.get_puzzle_image(puzzle_id)
-            logger.info(
-                f"Account: {self.account_data.email} | Got puzzle image, solving..."
-            )
-            answer, solved = await self.solve_puzzle(image)
-            if solved and str(answer).isdigit():
-                logger.success(
-                    f"Account: {self.account_data.email} | Puzzle solved: {answer}"
-                )
-                return puzzle_id, str(answer)
-            logger.error(
-                f"Account: {self.account_data.email} | Failed to solve puzzle | Retrying..."
-            )
+            try:
+                puzzle_id = await self.get_puzzle_id()
+                image = await self.get_puzzle_image(puzzle_id)
+
+                logger.info(f"Account: {self.account_data.email} | Got puzzle image, solving...")
+                answer, solved, *rest = await self.solve_puzzle(image)
+
+                if solved and len(answer) == 6:
+                    logger.success(f"Account: {self.account_data.email} | Puzzle solved: {answer}")
+                    return puzzle_id, answer, rest[0] if rest and len(rest) > 0 else None
+
+                if len(answer) != 6 and rest and len(rest) > 0:
+                    task_id = rest[0]
+                    await self.report_invalid_puzzle(task_id)
+
+                logger.error(f"Account: {self.account_data.email} | Failed to solve puzzle: Incorrect answer | Retrying...")
+
+            except Exception as e:
+                logger.error(f"Account: {self.account_data.email} | Error occurred: {str(e)} | Retrying...")
 
     async def process_registration(self):
+        task_id = None
+
         try:
             if not await check_if_email_valid(
                 self.account_data.imap_server,
@@ -44,7 +52,7 @@ class Bot(DawnExtensionAPI):
                 return False
 
             logger.info(f"Account: {self.account_data.email} | Registering...")
-            puzzle_id, answer = await self.get_captcha_data()
+            puzzle_id, answer, task_id = await self.get_captcha_data()
 
             await self.register(puzzle_id, answer)
             logger.info(
@@ -80,9 +88,15 @@ class Bot(DawnExtensionAPI):
 
         except APIError as error:
             if error.error_message in error.BASE_MESSAGES:
-                logger.warning(
-                    f"Account: {self.account_data.email} | Captcha expired or answer incorrect, re-solving..."
-                )
+                if error.error_message == "Incorrect answer. Try again!":
+                    logger.warning(
+                        f"Account: {self.account_data.email} | Captcha answer incorrect, re-solving..."
+                    )
+                    await self.report_invalid_puzzle(task_id) if task_id else None
+                else:
+                    logger.warning(
+                        f"Account: {self.account_data.email} | Captcha expired, re-solving..."
+                    )
                 return await self.process_registration()
 
             logger.error(f"Account: {self.account_data.email} | Failed to register: {error}")
@@ -91,7 +105,8 @@ class Bot(DawnExtensionAPI):
             logger.error(
                 f"Account: {self.account_data.email} | Failed to register: {error}"
             )
-            return False
+
+        return False
 
     @staticmethod
     def get_sleep_until() -> datetime:
@@ -101,7 +116,8 @@ class Bot(DawnExtensionAPI):
         try:
             db_account_data = await Accounts.get_account(email=self.account_data.email)
             if db_account_data is None or db_account_data.headers is None:
-                await self.login_new_account()
+                if not await self.login_new_account():
+                    return False
             else:
                 await self.handle_existing_account(db_account_data)
 
@@ -120,12 +136,6 @@ class Bot(DawnExtensionAPI):
             await self.perform_farming_actions()
 
         except APIError as error:
-            if error.error_message in error.BASE_MESSAGES:
-                logger.warning(
-                    f"Account: {self.account_data.email} | Captcha expired or answer incorrect, re-solving..."
-                )
-                return await self.process_farming()
-
             logger.error(f"Account: {self.account_data.email} | Failed to farm: {error}")
 
         except Exception as error:
@@ -139,7 +149,8 @@ class Bot(DawnExtensionAPI):
         try:
             db_account_data = await Accounts.get_account(email=self.account_data.email)
             if db_account_data is None:
-                await self.login_new_account()
+                if not await self.login_new_account():
+                    return False
             else:
                 await self.handle_existing_account(db_account_data, check_sleep=False)
 
@@ -155,13 +166,36 @@ class Bot(DawnExtensionAPI):
             )
 
     async def login_new_account(self):
-        logger.info(f"Account: {self.account_data.email} | Logging in...")
-        puzzle_id, answer = await self.get_captcha_data()
-        await self.login(puzzle_id, answer)
-        logger.info(f"Account: {self.account_data.email} | Successfully logged in")
-        await Accounts.create_account(
-            email=self.account_data.email, headers=self.session.headers
-        )
+        task_id = None
+
+        try:
+            logger.info(f"Account: {self.account_data.email} | Logging in...")
+            puzzle_id, answer, task_id = await self.get_captcha_data()
+
+            await self.login(puzzle_id, answer)
+            logger.info(f"Account: {self.account_data.email} | Successfully logged in")
+
+            await Accounts.create_account(
+                email=self.account_data.email, headers=self.session.headers
+            )
+            return True
+
+        except APIError as error:
+            if error.error_message in error.BASE_MESSAGES:
+                if error.error_message == "Incorrect answer. Try again!":
+                    logger.warning(
+                        f"Account: {self.account_data.email} | Captcha answer incorrect, re-solving..."
+                    )
+                    await self.report_invalid_puzzle(task_id) if task_id else None
+                else:
+                    logger.warning(
+                        f"Account: {self.account_data.email} | Captcha expired, re-solving..."
+                    )
+            else:
+                logger.error(f"Account: {self.account_data.email} | Failed to login: {error}")
+                return False
+
+            return await self.login_new_account()
 
     async def handle_existing_account(self, db_account_data, check_sleep: bool = True):
         if check_sleep:

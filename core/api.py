@@ -8,7 +8,7 @@ from curl_cffi.requests import AsyncSession
 
 from models import Account
 from .exceptions.base import APIError
-from loader import ocr_solver
+from loader import captcha_solver
 
 
 class DawnExtensionAPI:
@@ -134,9 +134,13 @@ class DawnExtensionAPI:
         raise APIError(f"Failed to send request after {max_retries} attempts")
 
     @staticmethod
-    async def solve_puzzle(image: str) -> Tuple[str | int, bool]:
-        response = ocr_solver.start(image)
+    async def solve_puzzle(image: str) -> Tuple[str | int, bool, str | int] | Tuple[str, bool] | Tuple[str, bool, str]:
+        response = await captcha_solver.solve(image)
         return response
+
+    @staticmethod
+    async def report_invalid_puzzle(task_id: int | str) -> None:
+        await captcha_solver.report_bad(task_id)
 
     async def get_puzzle_id(self) -> str:
         response = await self.send_request(

@@ -1,6 +1,10 @@
 threads: 5 # number of threads to run (min 1)
 keepalive_interval: 120 # seconds
 
+two_captcha_api_key: ""
+anti_captcha_api_key: ""
+captcha_module: anticaptcha # 2captcha or anticaptcha
+
 imap_settings:
   rambler.ru: imap.rambler.ru
   hotmail.com: imap-mail.outlook.com
