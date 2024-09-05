@@ -116,7 +116,6 @@ class DawnExtensionAPI:
                     try:
                         return verify_response(response.json())
                     except json.JSONDecodeError:
-                        response.raise_for_status()
                         return response.text
 
                 return response.text
