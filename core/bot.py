@@ -298,6 +298,9 @@ class Bot(DawnExtensionAPI):
         except CaptchaSolvingFailed:
             sleep_until = self.get_sleep_until()
             await Accounts.set_sleep_until(self.account_data.email, sleep_until)
+            logger.error(
+                f"Account: {self.account_data.email} | Failed to solve captcha after 5 attempts, sleeping..."
+            )
             return False
 
         except Exception as error:
