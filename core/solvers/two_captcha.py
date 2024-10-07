@@ -24,11 +24,13 @@ class TwoCaptchaImageSolver:
                     "math": False,
                     "minLength": 6,
                     "maxLength": 6,
-                    "comment": "Pay close attention to the letter case."
+                    "comment": "Pay close attention to the letter case.",
                 },
             }
 
-            resp = await self.client.post(f"{self.BASE_URL}/createTask", json=captcha_data)
+            resp = await self.client.post(
+                f"{self.BASE_URL}/createTask", json=captcha_data
+            )
             resp.raise_for_status()
             data = resp.json()
 
@@ -41,7 +43,9 @@ class TwoCaptchaImageSolver:
         except Exception as err:
             return f"An unexpected error occurred: {err}", False
 
-    async def get_captcha_result(self, task_id: int | str) -> tuple[Any, bool, int | str] | tuple[str, bool, int | str] | tuple[str, bool]:
+    async def get_captcha_result(
+        self, task_id: int | str
+    ) -> tuple[Any, bool, int | str] | tuple[str, bool, int | str] | tuple[str, bool]:
         for _ in range(10):
             try:
                 resp = await self.client.post(

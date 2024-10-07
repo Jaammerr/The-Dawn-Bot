@@ -1,10 +1,10 @@
 import os
 import yaml
-
 from itertools import cycle
 from loguru import logger
 from models import Config, Account
 from better_proxy import Proxy
+from typing import List, Dict, Generator
 
 CONFIG_PATH = os.path.join(os.getcwd(), "config")
 CONFIG_DATA_PATH = os.path.join(CONFIG_PATH, "data")
@@ -15,63 +15,50 @@ REQUIRED_PARAMS_FIELDS = (
     "threads",
     "keepalive_interval",
     "imap_settings",
-    "captcha_module"
+    "captcha_module",
+    "delay_before_start",
 )
 
 
 def read_file(
     file_path: str, check_empty: bool = True, is_yaml: bool = False
-) -> list[str] | dict:
+) -> List[str] | Dict:
     if not os.path.exists(file_path):
-        logger.error(f"File not found: {file_path}")
-        exit(1)
+        raise FileNotFoundError(f"File not found: {file_path}")
 
     if check_empty and os.stat(file_path).st_size == 0:
-        logger.error(f"File is empty: {file_path}")
-        exit(1)
+        raise ValueError(f"File is empty: {file_path}")
 
     if is_yaml:
         with open(file_path, "r", encoding="utf-8") as file:
-            data = yaml.safe_load(file)
-        return data
+            return yaml.safe_load(file)
 
     with open(file_path, "r", encoding="utf-8") as file:
-        data = file.readlines()
-
-    return [line.strip() for line in data]
+        return [line.strip() for line in file]
 
 
-def get_params() -> dict:
+def get_params() -> Dict:
     data = read_file(CONFIG_PARAMS, is_yaml=True)
-
-    for field in REQUIRED_PARAMS_FIELDS:
-        if field not in data:
-            logger.error(f"Field '{field}' is missing in config file")
-            exit(1)
-
+    missing_fields = set(REQUIRED_PARAMS_FIELDS) - set(data.keys())
+    if missing_fields:
+        raise ValueError(f"Missing fields in config file: {', '.join(missing_fields)}")
     return data
 
 
-def get_proxies() -> list[Proxy]:
+def get_proxies() -> List[Proxy]:
     try:
         proxies = read_file(
             os.path.join(CONFIG_DATA_PATH, "proxies.txt"), check_empty=False
         )
-        if proxies:
-            return [Proxy.from_str(line) for line in proxies]
-        else:
-            return []
+        return [Proxy.from_str(line) for line in proxies] if proxies else []
     except Exception as exc:
-        logger.error(f"Failed to parse proxy: {exc}")
-        exit(1)
+        raise ValueError(f"Failed to parse proxy: {exc}")
 
 
-def get_accounts_to_register():
+def get_accounts(file_name: str) -> Generator[Account, None, None]:
     proxies = get_proxies()
     proxy_cycle = cycle(proxies) if proxies else None
-    accounts = read_file(
-        os.path.join(CONFIG_DATA_PATH, "register.txt"), check_empty=False
-    )
+    accounts = read_file(os.path.join(CONFIG_DATA_PATH, file_name), check_empty=False)
 
     for account in accounts:
         try:
@@ -81,74 +68,43 @@ def get_accounts_to_register():
                 password=password,
                 proxy=next(proxy_cycle) if proxy_cycle else None,
             )
-
         except ValueError:
             logger.error(f"Failed to parse account: {account}")
-            exit(1)
 
 
-def get_accounts_to_farm():
-    proxies = get_proxies()
-    proxy_cycle = cycle(proxies) if proxies else None
-    accounts = read_file(os.path.join(CONFIG_DATA_PATH, "farm.txt"), check_empty=False)
-
-    for account in accounts:
-        try:
-            email, password = account.split(":")
-            yield Account(
-                email=email,
-                password=password,
-                proxy=next(proxy_cycle) if proxy_cycle else None,
-            )
-
-        except ValueError:
-            logger.error(f"Failed to parse account: {account}")
-            exit(1)
-
-
-def validate_domains(accounts: list[Account], domains: dict):
+def validate_domains(accounts: List[Account], domains: Dict[str, str]) -> List[Account]:
     for account in accounts:
         domain = account.email.split("@")[1]
         if domain not in domains:
-            logger.error(
+            raise ValueError(
                 f"Domain '{domain}' is not supported, please add it to the config file"
             )
-            exit(1)
-
-        imap_server = domains[domain]
-        account.imap_server = imap_server
-
+        account.imap_server = domains[domain]
     return accounts
 
 
 def load_config() -> Config:
     try:
-        reg_accounts = list(get_accounts_to_register())
-        farm_accounts = list(get_accounts_to_farm())
+        reg_accounts = list(get_accounts("register.txt"))
+        farm_accounts = list(get_accounts("farm.txt"))
 
         if not reg_accounts and not farm_accounts:
-            logger.error("No accounts found in data files")
-            exit(1)
+            raise ValueError("No accounts found in data files")
 
+        params = get_params()
         config = Config(
-            **get_params(),
-            accounts_to_farm=farm_accounts,
-            accounts_to_register=reg_accounts,
+            **params, accounts_to_farm=farm_accounts, accounts_to_register=reg_accounts
         )
 
         if reg_accounts:
-            accounts = validate_domains(reg_accounts, config.imap_settings)
-            config.accounts_to_register = accounts
+            config.accounts_to_register = validate_domains(
+                reg_accounts, config.imap_settings
+            )
 
-        if config.captcha_module == "2captcha":
-            if not config.two_captcha_api_key:
-                logger.error("2Captcha API key is missing")
-                exit(1)
-
-        elif config.captcha_module == "anticaptcha":
-            if not config.anti_captcha_api_key:
-                logger.error("AntiCaptcha API key is missing")
-                exit(1)
+        if config.captcha_module == "2captcha" and not config.two_captcha_api_key:
+            raise ValueError("2Captcha API key is missing")
+        elif config.captcha_module == "anticaptcha" and not config.anti_captcha_api_key:
+            raise ValueError("AntiCaptcha API key is missing")
 
         return config
 

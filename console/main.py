@@ -3,11 +3,15 @@ import sys
 import inquirer
 
 from inquirer.themes import GreenPassion
-from art import tprint
-
+from art import text2art
 from colorama import Fore
 from loader import config
-from .logger import info_log
+
+from rich.console import Console as RichConsole
+from rich.panel import Panel
+from rich.table import Table
+from rich import box
+from rich.text import Text
 
 sys.path.append(os.path.realpath("."))
 
@@ -15,35 +19,41 @@ sys.path.append(os.path.realpath("."))
 class Console:
     MODULES = (
         "Register",
-        "Farm (cycle)",
-        # "Farm (one time)",
+        "Farm",
         "Complete tasks",
-        # "Export wallets",
+        "Export statistics",
         "Exit",
     )
     MODULES_DATA = {
         "Register": "register",
-        "Farm (cycle)": "farm_cycle",
-        "Farm (one time)": "farm_one_time",
+        "Farm": "farm",
+        "Exit": "exit",
+        "Export statistics": "export_stats",
         "Complete tasks": "complete_tasks",
-        "Export wallets": "export_wallets",
     }
 
-    @staticmethod
-    def show_dev_info():
-        os.system("cls")
-        tprint("JamBit")
-        print("\033[36m" + "VERSION: " + "\033[34m" + "1.3" + "\033[34m")
-        print(
-            "\033[36m" + "Channel: " + "\033[34m" + "https://t.me/JamBitPY" + "\033[34m"
+    def __init__(self):
+        self.rich_console = RichConsole()
+
+    def show_dev_info(self):
+        os.system("cls" if os.name == "nt" else "clear")
+
+        title = text2art("JamBit", font="small")
+        styled_title = Text(title, style="bold cyan")
+
+        version = Text("VERSION: 1.4", style="blue")
+        telegram = Text("Channel: https://t.me/JamBitPY", style="green")
+        github = Text("GitHub: https://github.com/Jaammerr", style="green")
+
+        dev_panel = Panel(
+            Text.assemble(styled_title, "\n", version, "\n", telegram, "\n", github),
+            border_style="yellow",
+            expand=False,
+            title="[bold green]Welcome[/bold green]",
+            subtitle="[italic]Powered by Jammer[/italic]",
         )
-        print(
-            "\033[36m"
-            + "GitHub: "
-            + "\033[34m"
-            + "https://github.com/Jaammerr"
-            + "\033[34m"
-        )
+
+        self.rich_console.print(dev_panel)
         print()
 
     @staticmethod
@@ -63,15 +73,34 @@ class Console:
         answers = self.prompt(questions)
         return answers.get("module")
 
-    def build(self) -> None:
-        os.system("cls")
-        self.show_dev_info()
-        info_log(
-            f"\n- Accounts to register: {len(config.accounts_to_register)}\n- Accounts to farm: {len(config.accounts_to_farm)}\n- Threads: {config.threads}\n"
+    def display_info(self):
+        table = Table(title="Dawn Configuration", box=box.ROUNDED)
+        table.add_column("Parameter", style="cyan")
+        table.add_column("Value", style="magenta")
+
+        table.add_row("Accounts to register", str(len(config.accounts_to_register)))
+        table.add_row("Accounts to farm", str(len(config.accounts_to_farm)))
+        table.add_row("Threads", str(config.threads))
+        table.add_row(
+            "Delay before start",
+            f"{config.delay_before_start.min} - {config.delay_before_start.max} sec",
         )
 
-        module = self.get_module()
-        if module == "Exit":
-            exit(0)
+        panel = Panel(
+            table,
+            expand=False,
+            border_style="green",
+            title="[bold yellow]System Information[/bold yellow]",
+            subtitle="[italic]Use arrow keys to navigate[/italic]",
+        )
+        self.rich_console.print(panel)
 
+    def build(self) -> None:
+        self.show_dev_info()
+        self.display_info()
+
+        module = self.get_module()
         config.module = self.MODULES_DATA[module]
+
+        if config.module == "exit":
+            exit(0)

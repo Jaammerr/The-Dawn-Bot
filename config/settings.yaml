@@ -5,6 +5,10 @@ two_captcha_api_key: ""
 anti_captcha_api_key: ""
 captcha_module: anticaptcha # 2captcha or anticaptcha
 
+delay_before_start:
+    min: 5
+    max: 10
+
 imap_settings:
   rambler.ru: imap.rambler.ru
   hotmail.com: imap-mail.outlook.com

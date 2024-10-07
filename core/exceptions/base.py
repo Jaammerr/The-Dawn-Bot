@@ -11,6 +11,11 @@ class APIError(Exception):
         if self.response_data and "message" in self.response_data:
             return self.response_data["message"]
 
-
     def __str__(self):
         return self.error
+
+
+class SessionRateLimited(Exception):
+    """Raised when the session is rate limited"""
+
+    pass

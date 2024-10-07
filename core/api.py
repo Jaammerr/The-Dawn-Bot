@@ -7,7 +7,7 @@ from typing import Literal, Tuple, Any
 from curl_cffi.requests import AsyncSession
 
 from models import Account
-from .exceptions.base import APIError
+from .exceptions.base import APIError, SessionRateLimited
 from loader import captcha_solver
 
 
@@ -62,12 +62,16 @@ class DawnExtensionAPI:
             if "status" in str(response_data):
                 if isinstance(response_data, dict):
                     if response_data.get("status") is False:
-                        raise APIError(f"API returned an error: {response_data}", response_data)
+                        raise APIError(
+                            f"API returned an error: {response_data}", response_data
+                        )
 
             elif "success" in str(response_data):
                 if isinstance(response_data, dict):
                     if response_data.get("success") is False:
-                        raise APIError(f"API returned an error: {response_data}", response_data)
+                        raise APIError(
+                            f"API returned an error: {response_data}", response_data
+                        )
 
             return response_data
 
@@ -113,6 +117,10 @@ class DawnExtensionAPI:
                         )
 
                 if verify:
+
+                    if response.status_code == 403:
+                        raise SessionRateLimited("Session is rate limited")
+
                     try:
                         return verify_response(response.json())
                     except json.JSONDecodeError:
@@ -121,6 +129,9 @@ class DawnExtensionAPI:
                 return response.text
 
             except APIError:
+                raise
+
+            except SessionRateLimited:
                 raise
 
             except Exception as error:
@@ -133,7 +144,9 @@ class DawnExtensionAPI:
         raise APIError(f"Failed to send request after {max_retries} attempts")
 
     @staticmethod
-    async def solve_puzzle(image: str) -> Tuple[str | int, bool, str | int] | Tuple[str, bool] | Tuple[str, bool, str]:
+    async def solve_puzzle(
+        image: str,
+    ) -> Tuple[str | int, bool, str | int] | Tuple[str, bool] | Tuple[str, bool, str]:
         response = await captcha_solver.solve(image)
         return response
 
@@ -142,11 +155,14 @@ class DawnExtensionAPI:
         await captcha_solver.report_bad(task_id)
 
     async def get_puzzle_id(self) -> str:
+        if "Berear" in self.session.headers:
+            del self.session.headers["Berear"]
+            self.session.cookies.clear()
+
         response = await self.send_request(
             method="/v1/puzzle/get-puzzle",
             request_type="GET",
         )
-
         return response["puzzle_id"]
 
     async def get_puzzle_image(self, puzzle_id: str) -> str:
@@ -178,12 +194,12 @@ class DawnExtensionAPI:
 
     async def keepalive(self) -> dict | str:
         headers = {
-            'accept': '*/*',
-            'accept-language': 'en-US,en;q=0.9,ru;q=0.8',
-            'authorization': f'Berear {self.session.headers["Berear"]}',
-            'content-type': 'application/json',
-            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
-            'user-agent': self.session.headers["user-agent"],
+            "accept": "*/*",
+            "accept-language": "en-US,en;q=0.9,ru;q=0.8",
+            "authorization": f'Berear {self.session.headers["Berear"]}',
+            "content-type": "application/json",
+            "origin": "chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp",
+            "user-agent": self.session.headers["user-agent"],
         }
 
         json_data = {

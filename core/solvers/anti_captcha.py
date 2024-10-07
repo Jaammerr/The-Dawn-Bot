@@ -24,11 +24,13 @@ class AntiCaptchaImageSolver:
                     "math": False,
                     "minLength": 6,
                     "maxLength": 6,
-                    "comment": "Pay close attention to the letter case."
+                    "comment": "Pay close attention to the letter case.",
                 },
             }
 
-            resp = await self.client.post(f"{self.BASE_URL}/createTask", json=captcha_data)
+            resp = await self.client.post(
+                f"{self.BASE_URL}/createTask", json=captcha_data
+            )
             resp.raise_for_status()
             data = resp.json()
 

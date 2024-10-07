@@ -29,7 +29,9 @@ async def check_email_for_link(
     max_attempts: int = 8,
     delay_seconds: int = 5,
 ) -> Optional[str]:
-    link_pattern = r"https://www\.aeropres\.in/chromeapi/dawn/v1/user/verifylink\?key=[a-f0-9-]+"
+    link_pattern = (
+        r"https://www\.aeropres\.in/chromeapi/dawn/v1/user/verifylink\?key=[a-f0-9-]+"
+    )
     logger.info(f"Account: {email} | Checking email for link...")
 
     try:

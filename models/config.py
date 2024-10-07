@@ -24,6 +24,7 @@ class Config(BaseModel):
     accounts_to_farm: list[Account] = []
     two_captcha_api_key: str = ""
     anti_captcha_api_key: str = ""
+    delay_before_start: DelayBeforeStart
 
     threads: PositiveInt
     imap_settings: dict[str, str]

@@ -2,97 +2,95 @@ import asyncio
 import random
 import sys
 
-from typing import Callable, Coroutine, Any
+from typing import Callable, Coroutine, Any, List, Tuple
 from loguru import logger
-from loader import config, semaphore
+from loader import config, semaphore, file_operations
 from core.bot import Bot
 from models import Account
-from utils import export_results, setup
+from utils import setup
 from console import Console
 from database import initialize_database
-
 
 
 async def run_module_safe(
     account: Account, process_func: Callable[[Bot], Coroutine[Any, Any, Any]]
 ) -> Any:
     async with semaphore:
-        return await process_func(Bot(account))
+        bot = Bot(account)
+        try:
+            if config.delay_before_start.min > 0:
+                random_delay = random.randint(config.delay_before_start.min, config.delay_before_start.max)
+                logger.info(f"Account: {account.email} | Sleep for {random_delay} sec")
+                await asyncio.sleep(random_delay)
+
+            result = await process_func(bot)
+            return result
+        finally:
+            await bot.close_session()
 
 
-async def process_registration(bot: Bot) -> tuple[str, str, bool]:
-    status = await bot.process_registration()
-    await bot.close_session()
-    return bot.account_data.email, bot.account_data.password, status
+async def process_registration(bot: Bot) -> None:
+    operation_result = await bot.process_registration()
+    await file_operations.export_result(operation_result, "register")
 
 
 async def process_farming(bot: Bot) -> None:
     await bot.process_farming()
-    await bot.close_session()
+
+
+async def process_export_stats(bot: Bot) -> None:
+    data = await bot.process_get_user_info()
+    await file_operations.export_stats(data)
 
 
 async def process_complete_tasks(bot: Bot) -> None:
-    await bot.process_complete_tasks()
-    await bot.close_session()
+    operation_result = await bot.process_complete_tasks()
+    await file_operations.export_result(operation_result, "tasks")
 
 
-# async def export_account_wallet(bot: Bot) -> tuple[str, str]:
-#     return bot.account_data.email, await bot.export_account_wallet()
-
-
-async def run_module(accounts, process_func, export_name: str = None):
+async def run_module(
+    accounts: List[Account], process_func: Callable[[Bot], Coroutine[Any, Any, Any]]
+) -> tuple[Any]:
     tasks = [run_module_safe(account, process_func) for account in accounts]
-    results = await asyncio.gather(*tasks)
-    if export_name:
-        export_results(results, export_name)
-    return results
+    return await asyncio.gather(*tasks)
 
 
-async def run():
+async def farm_continuously(accounts: List[Account]) -> None:
+    while True:
+        random.shuffle(accounts)
+        await run_module(accounts, process_farming)
+        await asyncio.sleep(10)
+
+
+async def run() -> None:
     await initialize_database()
+    await file_operations.setup_files()
+
+    module_map = {
+        "register": (config.accounts_to_register, process_registration),
+        "farm": (config.accounts_to_farm, farm_continuously),
+        "complete_tasks": (config.accounts_to_farm, process_complete_tasks),
+        "export_stats": (config.accounts_to_farm, process_export_stats),
+    }
 
     while True:
         Console().build()
 
-        if config.module == "register":
-            if not config.accounts_to_register:
-                logger.error("No accounts to register")
-                break
-            await run_module(
-                config.accounts_to_register, process_registration, "register"
-            )
+        if config.module not in module_map:
+            logger.error(f"Unknown module: {config.module}")
+            break
 
-        elif config.module in ("farm_cycle", "farm_one_time"):
-            if not config.accounts_to_farm:
-                logger.error("No accounts to farm")
-                break
+        accounts, process_func = module_map[config.module]
 
-            random.shuffle(config.accounts_to_farm)
+        if not accounts:
+            logger.error(f"No accounts for {config.module}")
+            break
 
-            if config.module == "farm_one_time":
-                await run_module(config.accounts_to_farm, process_farming)
-            else:
-                while True:
-                    await run_module(config.accounts_to_farm, process_farming)
-
-        elif config.module == "complete_tasks":
-            if not config.accounts_to_farm:
-                logger.error("No accounts to complete tasks")
-                break
-
-            random.shuffle(config.accounts_to_farm)
-            await run_module(config.accounts_to_farm, process_complete_tasks)
-
-        # elif config.module == "export_wallets":
-        #     if not config.accounts_to_farm:
-        #         logger.error("No accounts to export wallets")
-        #         break
-        #
-        #     await run_module(
-        #         config.accounts_to_farm, export_account_wallet, "export_wallets"
-        #     )
-
-        input("\n\nPress Enter to continue...")
+        if config.module == "farm":
+            await process_func(accounts)
+        else:
+            await run_module(accounts, process_func)
+            input("\n\nPress Enter to continue...")
 
 
 if __name__ == "__main__":

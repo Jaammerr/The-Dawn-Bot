@@ -9,10 +9,10 @@ class Accounts(Model):
     email = fields.CharField(max_length=255, unique=True)
     headers = fields.JSONField(null=True)
     sleep_until = fields.DatetimeField(null=True)
-    wallet_private_key = fields.CharField(max_length=255, null=True)
+    session_blocked_until = fields.DatetimeField(null=True)
 
     class Meta:
-        table = "dawn_accounts"
+        table = "dawn_accounts_v1.4"
 
     @classmethod
     async def get_account(cls, email: str):
@@ -23,39 +23,15 @@ class Accounts(Model):
         return await cls.all()
 
     @classmethod
-    async def create_account(
-        cls, email: str, headers: dict = None, wallet_private_key: str = None
-    ):
+    async def create_account(cls, email: str, headers: dict = None):
         account = await cls.get_account(email=email)
         if account is None:
-            account = await cls.create(
-                email=email, headers=headers, wallet_private_key=wallet_private_key
-            )
+            account = await cls.create(email=email, headers=headers)
             return account
         else:
             account.headers = headers
-            account.wallet_private_key = wallet_private_key
             await account.save()
             return account
-
-
-    @classmethod
-    async def get_account_private_key(cls, email: str):
-        account = await cls.get_account(email=email)
-        if account is None:
-            return None
-
-        return account.wallet_private_key
-
-    @classmethod
-    async def set_account_private_key(cls, email: str, private_key: str):
-        account = await cls.get_account(email=email)
-        if account is None:
-            return False
-
-        account.wallet_private_key = private_key
-        await account.save()
-        return True
 
     @classmethod
     async def delete_account(cls, email: str):
@@ -81,3 +57,28 @@ class Accounts(Model):
         await account.save()
         logger.info(f"Account: {email} | Set new sleep_until: {sleep_until}")
         return True
+
+    @classmethod
+    async def set_session_blocked_until(
+        cls, email: str, session_blocked_until: datetime
+    ):
+        account = await cls.get_account(email=email)
+        if account is None:
+            account = await cls.create_account(email=email)
+            account.session_blocked_until = session_blocked_until
+            await account.save()
+            logger.info(
+                f"Account: {email} | Set new session_blocked_until: {session_blocked_until}"
+            )
+            return
+
+        if session_blocked_until.tzinfo is None:
+            session_blocked_until = pytz.UTC.localize(session_blocked_until)
+        else:
+            session_blocked_until = session_blocked_until.astimezone(pytz.UTC)
+
+        account.session_blocked_until = session_blocked_until
+        await account.save()
+        logger.info(
+            f"Account: {email} | Set new session_blocked_until: {session_blocked_until}"
+        )
