@@ -95,6 +95,9 @@ class FileOperations:
                 async with aiofiles.open(file_path, mode="a", newline="") as f:
                     writer = AsyncWriter(f)
 
+                    if not data or not data["referralPoint"] or not data["rewardPoint"]:
+                        return
+
                     await writer.writerow(
                         [
                             data["referralPoint"]["email"],
