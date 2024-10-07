@@ -170,6 +170,7 @@ class Bot(DawnExtensionAPI):
 
         except SessionRateLimited:
             await self.handle_session_blocked()
+
         except APIError as error:
             logger.error(
                 f"Account: {self.account_data.email} | Failed to farm: {error}"
@@ -292,6 +293,11 @@ class Bot(DawnExtensionAPI):
             logger.error(
                 f"Account: {self.account_data.email} | Failed to login: {error}"
             )
+            return False
+
+        except CaptchaSolvingFailed:
+            sleep_until = self.get_sleep_until()
+            await Accounts.set_sleep_until(self.account_data.email, sleep_until)
             return False
 
         except Exception as error:
