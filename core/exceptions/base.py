@@ -19,3 +19,9 @@ class SessionRateLimited(Exception):
     """Raised when the session is rate limited"""
 
     pass
+
+
+class CaptchaSolvingFailed(Exception):
+    """Raised when the captcha solving failed"""
+
+    pass

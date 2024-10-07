@@ -9,7 +9,7 @@ from models import Account, OperationResult, StatisticData
 from .api import DawnExtensionAPI
 from utils import check_email_for_link, check_if_email_valid
 from database import Accounts
-from .exceptions.base import APIError, SessionRateLimited
+from .exceptions.base import APIError, SessionRateLimited, CaptchaSolvingFailed
 
 
 class Bot(DawnExtensionAPI):
@@ -17,7 +17,7 @@ class Bot(DawnExtensionAPI):
         super().__init__(account)
 
     async def get_captcha_data(self) -> Tuple[str, Any, Optional[Any]]:
-        while True:
+        for _ in range(5):
             try:
                 puzzle_id = await self.get_puzzle_id()
                 image = await self.get_puzzle_image(puzzle_id)
@@ -47,6 +47,8 @@ class Bot(DawnExtensionAPI):
                 logger.error(
                     f"Account: {self.account_data.email} | Error occurred while solving captcha: {str(e)} | Retrying..."
                 )
+
+        raise CaptchaSolvingFailed("Failed to solve captcha after 5 attempts")
 
     async def clear_account_and_session(self) -> None:
         if await Accounts.get_account(email=self.account_data.email):
@@ -287,6 +289,12 @@ class Bot(DawnExtensionAPI):
                     )
                 return await self.login_new_account()
 
+            logger.error(
+                f"Account: {self.account_data.email} | Failed to login: {error}"
+            )
+            return False
+
+        except Exception as error:
             logger.error(
                 f"Account: {self.account_data.email} | Failed to login: {error}"
             )
