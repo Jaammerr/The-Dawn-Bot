@@ -56,7 +56,7 @@ class DawnExtensionAPI:
         cookies: dict = None,
         verify: bool = True,
         max_retries: int = 3,
-        retry_delay: float = 1.0,
+        retry_delay: float = 3.0,
     ):
         def verify_response(response_data: dict | list) -> dict | list:
             if "status" in str(response_data):
@@ -121,6 +121,9 @@ class DawnExtensionAPI:
                     if response.status_code == 403:
                         raise SessionRateLimited("Session is rate limited")
 
+                    if response.status_code in (500, 502, 503, 504):
+                        raise Exception(f"Server error - {response.status_code}")
+
                     try:
                         return verify_response(response.json())
                     except json.JSONDecodeError:
@@ -159,9 +162,14 @@ class DawnExtensionAPI:
             del self.session.headers["Berear"]
             self.session.cookies.clear()
 
+        params = {
+            'appid': 'undefined',
+        }
+
         response = await self.send_request(
             method="/v1/puzzle/get-puzzle",
             request_type="GET",
+            params=params,
         )
         return response["puzzle_id"]
 
@@ -169,7 +177,7 @@ class DawnExtensionAPI:
         response = await self.send_request(
             method="/v1/puzzle/get-puzzle-image",
             request_type="GET",
-            params={"puzzle_id": puzzle_id},
+            params={"puzzle_id": puzzle_id, "appid": "undefined"},
         )
 
         return response.get("imgBase64")
@@ -206,7 +214,11 @@ class DawnExtensionAPI:
             "username": self.account_data.email,
             "extensionid": "fpdkjdnhkakefebpekbdhillbhonfjjp",
             "numberoftabs": 0,
-            "_v": "1.0.7",
+            "_v": "1.0.9",
+        }
+
+        params = {
+            'appid': 'undefined',
         }
 
         return await self.send_request(
@@ -214,6 +226,7 @@ class DawnExtensionAPI:
             json_data=json_data,
             verify=False,
             headers=headers,
+            params=params,
         )
 
     async def user_info(self) -> dict:
@@ -222,10 +235,15 @@ class DawnExtensionAPI:
         headers["content-type"] = "application/json"
         del headers["Berear"]
 
+        params = {
+            'appid': 'undefined',
+        }
+
         response = await self.send_request(
             url="https://www.aeropres.in/api/atom/v1/userreferral/getpoint",
             request_type="GET",
             headers=headers,
+            params=params,
         )
 
         return response["data"]
@@ -266,11 +284,15 @@ class DawnExtensionAPI:
             current_time.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
         )
 
+        params = {
+            'appid': 'undefined',
+        }
+
         json_data = {
             "username": self.account_data.email,
             "password": self.account_data.password,
             "logindata": {
-                "_v": "1.0.7",
+                "_v": "1.0.9",
                 "datetime": formatted_datetime_str,
             },
             "puzzle_id": puzzle_id,
@@ -280,6 +302,7 @@ class DawnExtensionAPI:
         response = await self.send_request(
             method="/v1/user/login/v2",
             json_data=json_data,
+            params=params,
         )
 
         berear = response.get("data", {}).get("token")
