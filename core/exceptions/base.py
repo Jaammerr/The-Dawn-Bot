@@ -25,3 +25,9 @@ class CaptchaSolvingFailed(Exception):
     """Raised when the captcha solving failed"""
 
     pass
+
+
+class ServerError(APIError):
+    """Raised when the server returns an error"""
+
+    pass

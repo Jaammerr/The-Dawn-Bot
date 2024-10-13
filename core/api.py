@@ -7,7 +7,7 @@ from typing import Literal, Tuple, Any
 from curl_cffi.requests import AsyncSession
 
 from models import Account
-from .exceptions.base import APIError, SessionRateLimited
+from .exceptions.base import APIError, SessionRateLimited, ServerError
 from loader import captcha_solver
 
 
@@ -122,7 +122,7 @@ class DawnExtensionAPI:
                         raise SessionRateLimited("Session is rate limited")
 
                     if response.status_code in (500, 502, 503, 504):
-                        raise Exception(f"Server error - {response.status_code}")
+                        raise ServerError(f"Server error - {response.status_code}")
 
                     try:
                         return verify_response(response.json())
@@ -130,6 +130,12 @@ class DawnExtensionAPI:
                         return response.text
 
                 return response.text
+
+            except ServerError as error:
+                if attempt == max_retries - 1:
+                    raise error
+                await asyncio.sleep(retry_delay)
+
 
             except APIError:
                 raise
@@ -273,6 +279,9 @@ class DawnExtensionAPI:
     async def verify_session(self) -> bool:
         try:
             await self.user_info()
+            return True
+
+        except ServerError:
             return True
 
         except APIError:
