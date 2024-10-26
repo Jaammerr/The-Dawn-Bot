@@ -3,7 +3,7 @@ from typing import Tuple, Any, Optional
 
 import pytz
 from loguru import logger
-from loader import config
+from loader import config, file_operations
 from models import Account, OperationResult, StatisticData
 
 from .api import DawnExtensionAPI
@@ -54,6 +54,56 @@ class Bot(DawnExtensionAPI):
         if await Accounts.get_account(email=self.account_data.email):
             await Accounts.delete_account(email=self.account_data.email)
         self.session = self.setup_session()
+
+    async def process_reverify_email(self) -> OperationResult:
+        await self.clear_account_and_session()
+
+        try:
+            confirm_url = await check_email_for_link(
+                imap_server=self.account_data.imap_server,
+                email=self.account_data.email,
+                password=self.account_data.password,
+            )
+
+            if confirm_url is None:
+                logger.error(
+                    f"Account: {self.account_data.email} | Confirmation link not found"
+                )
+                return OperationResult(
+                    identifier=self.account_data.email,
+                    data=self.account_data.password,
+                    status=False,
+                )
+
+            logger.success(
+                f"Account: {self.account_data.email} | Link found, confirming registration..."
+            )
+            response = await self.clear_request(url=confirm_url)
+            if response.status_code == 200:
+                logger.success(
+                    f"Account: {self.account_data.email} | Successfully confirmed registration"
+                )
+                return OperationResult(
+                    identifier=self.account_data.email,
+                    data=self.account_data.password,
+                    status=True,
+                )
+
+            logger.error(
+                f"Account: {self.account_data.email} | Failed to confirm registration"
+            )
+
+        except Exception as error:
+            logger.error(
+                f"Account: {self.account_data.email} | Failed to reverify email: {error}"
+            )
+
+        return OperationResult(
+            identifier=self.account_data.email,
+            data=self.account_data.password,
+            status=False,
+        )
+
 
     async def process_registration(self) -> OperationResult:
         task_id = None
@@ -121,6 +171,11 @@ class Bot(DawnExtensionAPI):
                     )
                     if task_id:
                         await self.report_invalid_puzzle(task_id)
+
+                elif error.error_message == "email already exists":
+                    logger.warning(f"Account: {self.account_data.email} | Email already exists, re-verifying...")
+                    return await self.process_reverify_email()
+
                 else:
                     logger.warning(
                         f"Account: {self.account_data.email} | Captcha expired, re-solving..."
@@ -175,6 +230,8 @@ class Bot(DawnExtensionAPI):
             logger.error(
                 f"Account: {self.account_data.email} | Failed to farm: {error}"
             )
+
+
         except Exception as error:
             logger.error(
                 f"Account: {self.account_data.email} | Failed to farm: {error}"
@@ -284,10 +341,24 @@ class Bot(DawnExtensionAPI):
                     )
                     if task_id:
                         await self.report_invalid_puzzle(task_id)
+
+                elif error.error_message == "Email not verified , Please check spam folder incase you did not get email":
+                    logger.error(
+                        f"Account: {self.account_data.email} | Email not verified, run registration process again"
+                    )
+
+                    await file_operations.export_unverified_email(self.account_data.email, self.account_data.password)
+                    for account in config.accounts_to_farm:
+                        if account.email == self.account_data.email:
+                            config.accounts_to_farm.remove(account)
+
+                    return False
+
                 else:
                     logger.warning(
                         f"Account: {self.account_data.email} | Captcha expired, re-solving..."
                     )
+
                 return await self.login_new_account()
 
             logger.error(
@@ -309,16 +380,17 @@ class Bot(DawnExtensionAPI):
             )
             return False
 
-    async def handle_existing_account(self, db_account_data) -> bool:
+    async def handle_existing_account(self, db_account_data) -> bool | None:
         if db_account_data.sleep_until and await self.handle_sleep(
             db_account_data.sleep_until
         ):
             return False
 
         self.session.headers = db_account_data.headers
-        if not await self.verify_session():
+        status, result = await self.verify_session()
+        if not status:
             logger.warning(
-                f"Account: {self.account_data.email} | Session is invalid, re-logging in..."
+                f"Account: {self.account_data.email} | Session is invalid, re-logging in: {result}"
             )
             await self.clear_account_and_session()
             return await self.process_farming()
