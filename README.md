@@ -16,6 +16,7 @@
 ## 🚀 Features
 
 - ✅ Automatic account registration and login
+- 📧 Automated account reverification
 - 🌾 Automated completion of all tasks
 - 💰 Automated farming of points
 - 📊 Export account statistics
@@ -62,6 +63,7 @@ This file contains general settings for the bot:
 ```yaml
 threads: 5 # Number of threads for simultaneous account operations
 keepalive_interval: 120 # Delay between keepalive requests in seconds
+referral_code: "YOUR_REFERRAL_CODE" # Referral code for registration
 captcha_service: "2captcha" # Service for solving captcha (2captcha or anticaptcha)
 two_captcha_api_key: "YOUR_2CAPTCHA_API_KEY"
 anti_captcha_api_key: "YOUR_ANTICAPTCHA_API_KEY"
@@ -118,6 +120,7 @@ http://user:pass:ip:port
 ## ⚠️ Important Notes
 
 - The recommended delay between keepalive requests is 120 seconds.
+- If you have unverified accounts, you can use the `register` module again to reverify them.
 - Captcha solving now uses external services (2captcha, anti-captcha) due to changes in captcha complexity.
 - A database is used to optimize login processes by storing authorization tokens.
 - For email services like Gmail, you may need to use application-specific passwords instead of regular email passwords.
