@@ -8,7 +8,7 @@ from curl_cffi.requests import AsyncSession
 
 from models import Account
 from .exceptions.base import APIError, SessionRateLimited, ServerError
-from loader import captcha_solver
+from loader import captcha_solver, config
 
 
 class DawnExtensionAPI:
@@ -145,12 +145,12 @@ class DawnExtensionAPI:
 
             except Exception as error:
                 if attempt == max_retries - 1:
-                    raise APIError(
+                    raise ServerError(
                         f"Failed to send request after {max_retries} attempts: {error}"
                     )
                 await asyncio.sleep(retry_delay)
 
-        raise APIError(f"Failed to send request after {max_retries} attempts")
+        raise ServerError(f"Failed to send request after {max_retries} attempts")
 
     @staticmethod
     async def solve_puzzle(
@@ -196,7 +196,7 @@ class DawnExtensionAPI:
             "mobile": "",
             "password": self.account_data.password,
             "country": "+91",
-            "referralCode": "",
+            "referralCode": config.referral_code,
             "puzzle_id": puzzle_id,
             "ans": answer,
         }
@@ -276,16 +276,16 @@ class DawnExtensionAPI:
 
             await asyncio.sleep(delay)
 
-    async def verify_session(self) -> bool:
+    async def verify_session(self) -> tuple[bool, str]:
         try:
             await self.user_info()
-            return True
+            return True, "Session is valid"
 
         except ServerError:
-            return True
+            return True, "Server error"
 
-        except APIError:
-            return False
+        except APIError as error:
+            return False, str(error)
 
     async def login(self, puzzle_id: str, answer: str):
         current_time = datetime.now(timezone.utc)

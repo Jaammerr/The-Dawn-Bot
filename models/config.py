@@ -22,6 +22,7 @@ class Config(BaseModel):
 
     accounts_to_register: list[Account] = []
     accounts_to_farm: list[Account] = []
+    referral_code: str = ""
     two_captcha_api_key: str = ""
     anti_captcha_api_key: str = ""
     delay_before_start: DelayBeforeStart
