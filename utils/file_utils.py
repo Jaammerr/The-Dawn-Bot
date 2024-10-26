@@ -7,34 +7,6 @@ from aiocsv import AsyncWriter
 from models import ModuleType, OperationResult, StatisticData
 
 
-# lock = Lock()
-#
-#
-# def verify_files_and_folders(module: str) -> None:
-#     if not os.path.exists("./results"):
-#         os.makedirs("./results")
-#
-#     if module == "register":
-#         if not os.path.exists("./results/registration_success.txt"):
-#             open("./results/registration_success.txt", "w").close()
-#         if not os.path.exists("./results/registration_failed.txt"):
-#             open("./results/registration_failed.txt", "w").close()
-#
-#
-# async def export_result(result: tuple[str, str, bool], module: str) -> None:
-#     async with lock:
-#         verify_files_and_folders(module)
-#
-#         if module == "register":
-#             success_path = "./results/registration_success.txt"
-#             failed_path = "./results/registration_failed.txt"
-#
-#             email, password, status = result
-#             file_path = success_path if status else failed_path
-#
-#             async with aiofiles.open(file_path, "a") as file:
-#                 await file.write(f"{email}:{password}\n")
-
 
 class FileOperations:
     def __init__(self, base_path: str = "./results"):
@@ -51,6 +23,9 @@ class FileOperations:
             },
             "stats": {
                 "base": self.base_path / "accounts_stats.csv",
+            },
+            "accounts": {
+                "unverified": self.base_path / "unverified_accounts.txt",
             },
         }
 
@@ -88,6 +63,17 @@ class FileOperations:
             except IOError as e:
                 print(f"Error writing to file: {e}")
 
+
+    async def export_unverified_email(self, email: str, password: str):
+        file_path = self.module_paths["accounts"]["unverified"]
+        async with self.lock:
+            try:
+                async with aiofiles.open(file_path, "a") as file:
+                    await file.write(f"{email}:{password}\n")
+            except IOError as e:
+                print(f"Error writing to file: {e}")
+
+
     async def export_stats(self, data: StatisticData):
         file_path = self.module_paths["stats"]["base"]
         async with self.lock:
@@ -118,4 +104,4 @@ class FileOperations:
                     )
 
             except IOError as e:
-                print(f"Ошибка при записи в файл: {e}")
+                print(f"Error writing to file: {e}")
