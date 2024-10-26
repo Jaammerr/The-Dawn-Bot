@@ -1,5 +1,4 @@
 import re
-import time
 from typing import Optional
 import asyncio
 
@@ -85,14 +84,15 @@ async def check_email_for_link(
 
 
 def search_for_link_sync(mailbox: MailBox, link_pattern: str) -> Optional[str]:
-    messages = mailbox.fetch(AND(from_="hello@dawninternet.com"))
+    messages = mailbox.fetch()
 
     for msg in messages:
-        body = msg.text or msg.html
-        if body:
-            match = re.search(link_pattern, body)
-            if match:
-                return match.group(0)
+        if msg.from_ == "hello@dawninternet.com":
+            body = msg.text or msg.html
+            if body:
+                match = re.search(link_pattern, body)
+                if match:
+                    return match.group(0)
 
     return None
 
