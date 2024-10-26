@@ -1,5 +1,5 @@
 class APIError(Exception):
-    BASE_MESSAGES = ["refresh your captcha!!", "Incorrect answer. Try again!"]
+    BASE_MESSAGES = ["refresh your captcha!!", "Incorrect answer. Try again!", "Email not verified , Please check spam folder incase you did not get email", "email already exists"]
     """Base class for API exceptions"""
 
     def __init__(self, error: str, response_data: dict = None):
