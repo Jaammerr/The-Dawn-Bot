@@ -1,21 +1,34 @@
-threads: 5 # number of threads to run (min 1)
-keepalive_interval: 120 # seconds
+# Application Configuration File
+# =============================
 
-two_captcha_api_key: ""
-anti_captcha_api_key: ""
-captcha_module: anticaptcha # 2captcha or anticaptcha
+# Core Settings
+# ------------
+threads: 10                    # Number of concurrent threads to run (minimum: 1)
+keepalive_interval: 120        # How often to send keepalive signal (in seconds)
+referral_code: "hegbhf"        # Your referral code for the application
 
+# Captcha Settings
+# ---------------
+captcha_module: 2captcha       # Captcha service to use: '2captcha' or 'anticaptcha'
+two_captcha_api_key: ""        # API key for 2captcha service
+anti_captcha_api_key: ""       # API key for anti-captcha service
+
+# Startup Delay Configuration
+# -------------------------
 delay_before_start:
-    min: 5
-    max: 10
+  min: 2                       # Minimum delay before starting (seconds)
+  max: 3                       # Maximum delay before starting (seconds)
 
+# Email Provider IMAP Settings
+# --------------------------
 imap_settings:
-  rambler.ru: imap.rambler.ru
-  hotmail.com: imap-mail.outlook.com
-  outlook.com: imap-mail.outlook.com
-  mail.ru: imap.mail.ru
-  gmail.com: imap.gmail.com
-  gmx.com: imap.gmx.com
-  yahoo.com: imap.mail.yahoo.com
-  gmx.net: imap.gmx.net
-  gmx.de: imap.gmx.net
+  # Common email providers and their IMAP servers
+  gmail.com: imap.gmail.com          # Google Mail
+  yahoo.com: imap.mail.yahoo.com     # Yahoo Mail
+  outlook.com: imap-mail.outlook.com  # Microsoft Outlook
+  hotmail.com: imap-mail.outlook.com  # Microsoft Hotmail
+  mail.ru: imap.mail.ru              # Mail.ru
+  rambler.ru: imap.rambler.ru        # Rambler
+  gmx.com: imap.gmx.com              # GMX Mail
+  gmx.net: imap.gmx.net             # GMX Germany
+  gmx.de: imap.gmx.net              # GMX Germany (alternate domain)
