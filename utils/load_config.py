@@ -17,6 +17,7 @@ REQUIRED_PARAMS_FIELDS = (
     "imap_settings",
     "captcha_module",
     "delay_before_start",
+    "referral_code",
 )
 
 
