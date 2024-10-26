@@ -1,4 +1,4 @@
-# Dawn Extension Bot [1.4]
+# Dawn Extension Bot [1.5]
 
 <div align="center">
   <img src="./console/images/console.png" alt="Dawn Extension Bot Console" width="600"/>
