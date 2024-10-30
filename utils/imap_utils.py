@@ -57,7 +57,7 @@ async def check_email_for_link(
             f"Account: {email} | Link not found after {max_attempts} attempts, searching in spam folder..."
         )
 
-        spam_folders = ("SPAM", "Spam", "spam", "Junk", "junk")
+        spam_folders = ("SPAM", "Spam", "spam", "Junk", "junk", "Spamverdacht")
         for spam_folder in spam_folders:
 
             async def search_in_spam():
