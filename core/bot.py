@@ -36,9 +36,14 @@ class Bot(DawnExtensionAPI):
                 if len(answer) != 6 and rest:
                     await self.report_invalid_puzzle(rest[0])
 
-                logger.error(
-                    f"Account: {self.account_data.email} | Failed to solve puzzle: Incorrect answer | Retrying..."
-                )
+                if len(answer) > 30:
+                    logger.error(
+                        f"Account: {self.account_data.email} | Failed to solve puzzle: {answer} | Retrying..."
+                    )
+                else:
+                    logger.error(
+                        f"Account: {self.account_data.email} | Failed to solve puzzle: Incorrect answer | Retrying..."
+                    )
 
             except SessionRateLimited:
                 raise
