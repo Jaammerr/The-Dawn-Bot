@@ -4,7 +4,7 @@ import sys
 from typing import Callable, Coroutine, Any, List, Set
 
 from loguru import logger
-from loader import config, semaphore, file_operations
+from loader import config, semaphore, file_operations, single_semaphore
 from core.bot import Bot
 from models import Account
 from utils import setup
@@ -20,7 +20,7 @@ async def run_module_safe(
 ) -> Any:
     global accounts_with_initial_delay
 
-    async with semaphore:
+    async with semaphore if config.redirect_settings.enabled is False else single_semaphore:
         bot = Bot(account)
         try:
             if config.delay_before_start.min > 0:
@@ -44,6 +44,11 @@ async def run_module_safe(
 async def process_registration(bot: Bot) -> None:
     operation_result = await bot.process_registration()
     await file_operations.export_result(operation_result, "register")
+
+
+async def process_re_verify_accounts(bot: Bot) -> None:
+    operation_result = await bot.process_reverify_email()
+    await file_operations.export_result(operation_result, "re-verify")
 
 
 async def process_farming(bot: Bot) -> None:
@@ -89,6 +94,7 @@ async def run() -> None:
         "farm": (config.accounts_to_farm, farm_continuously),
         "complete_tasks": (config.accounts_to_farm, process_complete_tasks),
         "export_stats": (config.accounts_to_farm, process_export_stats),
+        "re_verify_accounts": (config.accounts_to_reverify, process_re_verify_accounts),
     }
 
     while True:
