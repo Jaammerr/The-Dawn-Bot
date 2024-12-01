@@ -1,136 +1,184 @@
-# Dawn Extension Bot [1.5]
+# 🌅 Dawn Extension Bot [v1.6]
 
 <div align="center">
   <img src="./console/images/console.png" alt="Dawn Extension Bot Console" width="600"/>
+  
+  <p align="center">
+    <a href="https://t.me/JamBitPY">
+      <img src="https://img.shields.io/badge/Telegram-Channel-blue?style=for-the-badge&logo=telegram" alt="Telegram Channel">
+    </a>
+    <a href="https://t.me/JamBitChat">
+      <img src="https://img.shields.io/badge/Telegram-Chat-blue?style=for-the-badge&logo=telegram" alt="Telegram Chat">
+    </a>
+  </p>
 </div>
 
-
-**Channel: [https://t.me/JamBitPY](https://t.me/JamBitPY)**
-
-**Chat: [https://t.me/JamBitChat](https://t.me/JamBitChat)**
-
-**Donation EVM Address: 0xe23380ae575D990BebB3b81DB2F90Ce7eDbB6dDa**
-
----
+## 📋 Table of Contents
+- [Features](#-features)
+- [Requirements](#-requirements)
+- [Installation](#-installation)
+- [Configuration](#%EF%B8%8F-configuration)
+- [Usage](#-usage)
+- [Troubleshooting](#-troubleshooting)
 
 ## 🚀 Features
 
-- ✅ Automatic account registration and login
-- 📧 Automated account reverification
-- 🌾 Automated completion of all tasks
-- 💰 Automated farming of points
-- 📊 Export account statistics
-- 🔄 Keepalive functionality to maintain session
-- 🧩 Advanced captcha solving
-
----
+- ✨ **Account Management**
+  - ✅ Automatic account registration and login
+  - 📧 Smart account reverification system
+  - 🛡️ Token-based authentication storage
+  
+- 🤖 **Automation**
+  - 🌾 Intelligent task completion
+  - 💰 Optimized point farming
+  - 🔄 Advanced keepalive system
+  
+- 📊 **Analytics & Export**
+  - 📈 Comprehensive account statistics
+  - 📉 Banned account tracking
+  - 📋 Unverified account monitoring
+  
+- 🔒 **Security**
+  - 🧩 Advanced captcha solving integration
+  - 🌐 Proxy support (HTTP/SOCKS5)
+  - 🔐 Secure email integration
 
 ## 💻 Requirements
 
-- Python >= 3.11
-- Internet connection
-- Valid email accounts for registration
-- Valid proxies (optional)
+- Python 3.11 or higher
+- Stable internet connection
+- Valid email accounts
+- Working proxies (HTTP/SOCKS5)
+- Captcha service subscription (2captcha/anticaptcha)
 
----
+## 🛠️ Installation
 
-## 🛠️ Setup
-
-1. Clone the repository:
+1. **Clone the Repository**
    ```bash
    git clone [repository URL]
    ```
-2. Create and activate a virtual environment:
+
+2. **Set Up Virtual Environment**
    ```bash
    python -m venv venv
-   cd venv/Scripts
-   activate
-   cd ../..
+   source venv/Scripts/activate  # Windows
+   source venv/bin/activate      # Unix/MacOS
    ```
-3. Install dependencies:
+
+3. **Install Dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
----
-
 ## ⚙️ Configuration
 
-### settings.yaml
-
-This file contains general settings for the bot:
+### 📁 settings.yaml
 
 ```yaml
-threads: 5 # Number of threads for simultaneous account operations
-keepalive_interval: 120 # Delay between keepalive requests in seconds
-referral_code: "YOUR_REFERRAL_CODE" # Referral code for registration
-captcha_service: "2captcha" # Service for solving captcha (2captcha or anticaptcha)
-two_captcha_api_key: "YOUR_2CAPTCHA_API_KEY"
-anti_captcha_api_key: "YOUR_ANTICAPTCHA_API_KEY"
+# Core Configuration
+threads: 30                    # Concurrent operation threads (min: 1)
+keepalive_interval: 120        # Keepalive signal interval (seconds)
+referral_codes:               # Multiple referral code support
+  - ""                        # Add your codes here
 
-imap_settings: # IMAP settings for email providers
+# Mail Redirect Settings
+redirect_settings:
+  enabled: false              # Enable/disable mail redirection
+  email: "test@gmail.com"     # Redirect email address
+  password: "password"        # Email password
+  imap_server: "imap.gmail.com"
+  use_proxy: true            # Use proxy for email operations
+
+# Captcha Configuration
+captcha_module: 2captcha      # Select: '2captcha' or 'anticaptcha'
+two_captcha_api_key: ""       # 2captcha API key
+anti_captcha_api_key: ""      # Anticaptcha API key
+
+# Startup Settings
+delay_before_start:
+  min: 2                      # Minimum startup delay (seconds)
+  max: 3                      # Maximum startup delay (seconds)
+
+# Email Provider Settings
+imap_settings:
+  # Global Providers
   gmail.com: imap.gmail.com
+  yahoo.com: imap.mail.yahoo.com
   outlook.com: imap-mail.outlook.com
-  # Add more email providers as needed
+  hotmail.com: imap-mail.outlook.com
+  icloud.com: imap.mail.me.com
+  
+  # Regional Providers
+  mail.ru: imap.mail.ru
+  rambler.ru: imap.rambler.ru
+  gmx.com: imap.gmx.com
+  onet.pl: imap.poczta.onet.pl
 ```
 
-### Other Configuration Files
+### 📁 Input Files Structure
 
-#### 📁 register.txt
-Contains accounts for registration.
+#### accounts/register.txt
 ```
-Format:
 email:password
 email:password
-...
 ```
 
-#### 📁 farm.txt
-Contains accounts for farming and task completion.
+#### accounts/farm.txt
 ```
-Format:
 email:password
 email:password
-...
 ```
 
-#### 📁 proxies.txt
-Contains proxy information.
+#### accounts/reverify.txt
 ```
-Format:
+email:password
+email:password
+```
+
+#### proxies/proxies.txt
+```
 http://user:pass@ip:port
 http://ip:port:user:pass
-http://ip:port@user:pass
-http://user:pass:ip:port
-...
+socks5://user:pass@ip:port
 ```
-
----
 
 ## 🚀 Usage
 
-1. Ensure all configuration files are set up correctly.
-2. Run the bot:
+1. Configure all necessary files as described above
+2. Start the bot:
    ```bash
    python run.py
    ```
 
----
-
 ## ⚠️ Important Notes
 
-- The recommended delay between keepalive requests is 120 seconds.
-- If you have unverified accounts, you can use the `register` module again to reverify them.
-- Captcha solving now uses external services (2captcha, anti-captcha) due to changes in captcha complexity.
-- A database is used to optimize login processes by storing authorization tokens.
-- For email services like Gmail, you may need to use application-specific passwords instead of regular email passwords.
-
----
+- 🕒 Recommended keepalive interval: 120 seconds
+- 📧 Gmail users: Use App-Specific Passwords
+- 🔄 Unverified accounts can be reverified using the register module
+- 💾 Authorization tokens are stored in local database
+- 🤖 External captcha services required (2captcha/anticaptcha)
 
 ## 🔧 Troubleshooting
 
-- **Email Verification Issues**: Check your email provider's IMAP settings in `settings.yaml`.
-- **Captcha Problems**: Verify your captcha service API key and account balance.
-- **Proxy Issues**: Ensure your proxy format is correct and the proxies are functional.
+### Common Issues and Solutions
 
----
+#### 📧 Email Verification Failed
+- Verify IMAP settings in settings.yaml
+- Check email provider's security settings
+- Ensure app-specific password for Gmail
+
+#### 🧩 Captcha Problems
+- Verify API key validity
+- Check service balance
+- Ensure selected service is operational
+
+#### 🌐 Proxy Issues
+- Validate proxy format
+- Check proxy functionality
+- Ensure proxy authentication is correct
+
+## 📞 Support
+
+Join our Telegram community for support:
+- 📢 Channel: [JamBitPY](https://t.me/JamBitPY)
+- 💬 Chat: [JamBitChat](https://t.me/JamBitChat)
