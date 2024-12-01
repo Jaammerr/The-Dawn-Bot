@@ -1,5 +1,7 @@
 import asyncio
 import json
+import random
+
 import names
 
 from datetime import datetime, timezone
@@ -196,7 +198,7 @@ class DawnExtensionAPI:
             "mobile": "",
             "password": self.account_data.password,
             "country": "+91",
-            "referralCode": config.referral_code,
+            "referralCode": random.choice(config.referral_codes) if config.referral_codes else "",
             "puzzle_id": puzzle_id,
             "ans": answer,
         }
@@ -253,6 +255,24 @@ class DawnExtensionAPI:
         )
 
         return response["data"]
+
+
+    async def resend_verify_link(self, puzzle_id: str, answer: str) -> dict:
+        params = {
+            'appid': 'undefined',
+        }
+
+        json_data = {
+            'username': self.account_data.email,
+            'puzzle_id': puzzle_id,
+            'ans': answer,
+        }
+
+        return await self.send_request(
+            method="/v1/user/resendverifylink/v2",
+            json_data=json_data,
+            params=params,
+        )
 
     async def complete_tasks(self, tasks: list[str] = None, delay: int = 1) -> None:
         if not tasks:
