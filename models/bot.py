@@ -1,7 +1,7 @@
 from typing import Literal, TypedDict
 
 
-ModuleType = Literal["register", "tasks", "stats", "accounts"]
+ModuleType = Literal["register", "tasks", "stats", "accounts", "re-verify"]
 
 
 class OperationResult(TypedDict):
