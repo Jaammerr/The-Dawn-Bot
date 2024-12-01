@@ -21,6 +21,7 @@ class Console:
         "Register",
         "Farm",
         "Complete tasks",
+        "Re-verify accounts",
         "Export statistics",
         "Exit",
     )
@@ -30,6 +31,7 @@ class Console:
         "Exit": "exit",
         "Export statistics": "export_stats",
         "Complete tasks": "complete_tasks",
+        "Re-verify accounts": "re_verify_accounts",
     }
 
     def __init__(self):
@@ -41,7 +43,7 @@ class Console:
         title = text2art("JamBit", font="small")
         styled_title = Text(title, style="bold cyan")
 
-        version = Text("VERSION: 1.5", style="blue")
+        version = Text("VERSION: 1.6", style="blue")
         telegram = Text("Channel: https://t.me/JamBitPY", style="green")
         github = Text("GitHub: https://github.com/Jaammerr", style="green")
 
@@ -78,8 +80,13 @@ class Console:
         table.add_column("Parameter", style="cyan")
         table.add_column("Value", style="magenta")
 
+        if config.redirect_settings.enabled:
+            table.add_row("Redirect mode", "Enabled")
+            table.add_row("Redirect email", config.redirect_settings.email)
+
         table.add_row("Accounts to register", str(len(config.accounts_to_register)))
         table.add_row("Accounts to farm", str(len(config.accounts_to_farm)))
+        table.add_row("Accounts to re-verify", str(len(config.accounts_to_reverify)))
         table.add_row("Threads", str(config.threads))
         table.add_row(
             "Delay before start",
