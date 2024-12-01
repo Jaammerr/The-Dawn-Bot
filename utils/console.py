@@ -1,8 +1,6 @@
-import os
 import sys
-
 import urllib3
-from art import tprint
+
 from loguru import logger
 
 
@@ -18,15 +16,4 @@ def setup():
     logger.add("./logs/logs.log", rotation="1 day", retention="7 days")
 
 
-def show_dev_info():
-    os.system("cls")
-    tprint("JamBit")
-    print("\033[36m" + "Channel: " + "\033[34m" + "https://t.me/JamBitPY" + "\033[34m")
-    print(
-        "\033[36m"
-        + "GitHub: "
-        + "\033[34m"
-        + "https://github.com/Jaammerr"
-        + "\033[34m"
-    )
-    print()
+

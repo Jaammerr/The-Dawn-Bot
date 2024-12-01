@@ -26,7 +26,12 @@ class FileOperations:
             },
             "accounts": {
                 "unverified": self.base_path / "unverified_accounts.txt",
+                "banned": self.base_path / "banned_accounts.txt",
             },
+            "re-verify": {
+                "success": self.base_path / "reverify_success.txt",
+                "failed": self.base_path / "reverify_failed.txt",
+            }
         }
 
     async def setup_files(self):
@@ -66,6 +71,16 @@ class FileOperations:
 
     async def export_unverified_email(self, email: str, password: str):
         file_path = self.module_paths["accounts"]["unverified"]
+        async with self.lock:
+            try:
+                async with aiofiles.open(file_path, "a") as file:
+                    await file.write(f"{email}:{password}\n")
+            except IOError as e:
+                print(f"Error writing to file: {e}")
+
+
+    async def export_banned_email(self, email: str, password: str):
+        file_path = self.module_paths["accounts"]["banned"]
         async with self.lock:
             try:
                 async with aiofiles.open(file_path, "a") as file:
