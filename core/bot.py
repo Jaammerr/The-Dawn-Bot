@@ -75,7 +75,7 @@ class Bot(DawnExtensionAPI):
             if account.email == email:
                 config.accounts_to_farm.remove(account)
 
-    async def process_reverify_email(self, resend_link: bool = True) -> OperationResult:
+    async def process_reverify_email(self, link_sent: bool = False) -> OperationResult:
         task_id = None
 
         try:
@@ -95,11 +95,13 @@ class Bot(DawnExtensionAPI):
             logger.info(f"Account: {self.account_data.email} | Re-verifying email...")
             puzzle_id, answer, task_id = await self.get_captcha_data()
 
-            if resend_link:
+            if not link_sent:
                 await self.resend_verify_link(puzzle_id, answer)
                 logger.info(f"Account: {self.account_data.email} | Successfully resent verification email, waiting for email...")
+                link_sent = True
 
             confirm_url = await LinkExtractor(
+                mode="re-verify",
                 imap_server=self.account_data.imap_server if not config.redirect_settings.enabled else config.redirect_settings.imap_server,
                 email=self.account_data.email if not config.redirect_settings.enabled else config.redirect_settings.email,
                 password=self.account_data.password if not config.redirect_settings.enabled else config.redirect_settings.password
@@ -155,10 +157,10 @@ class Bot(DawnExtensionAPI):
                         f"Account: {self.account_data.email} | Captcha expired, re-solving..."
                     )
 
-                return await self.process_reverify_email(resend_link=False)
+                return await self.process_reverify_email(link_sent=link_sent)
 
             logger.error(
-                f"Account: {self.account_data.email} | Failed to register: {error}"
+                f"Account: {self.account_data.email} | Failed to re-verify email: {error}"
             )
 
         except Exception as error:
@@ -199,6 +201,7 @@ class Bot(DawnExtensionAPI):
             )
 
             confirm_url = await LinkExtractor(
+                mode="verify",
                 imap_server=self.account_data.imap_server if not config.redirect_settings.enabled else config.redirect_settings.imap_server,
                 email=self.account_data.email if not config.redirect_settings.enabled else config.redirect_settings.email,
                 password=self.account_data.password if not config.redirect_settings.enabled else config.redirect_settings.password

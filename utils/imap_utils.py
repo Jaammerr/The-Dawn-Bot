@@ -2,7 +2,7 @@ import ssl
 import re
 import asyncio
 
-from typing import Optional, Dict
+from typing import Optional, Dict, Literal
 from datetime import datetime, timezone
 
 from loguru import logger
@@ -143,6 +143,7 @@ class LinkExtractor:
 
     def __init__(
             self,
+            mode: Literal["verify", "re-verify"],
             imap_server: str,
             email: str,
             password: str,
@@ -154,7 +155,7 @@ class LinkExtractor:
         self.password = password
         self.max_attempts = max_attempts
         self.delay_seconds = delay_seconds
-        self.link_pattern = r"https://www\.aeropres\.in/chromeapi/dawn/v1/user/verifylink\?key=[a-f0-9-]+"
+        self.link_pattern = r"https://www\.aeropres\.in/chromeapi/dawn/v1/user/verifylink\?key=[a-f0-9-]+" if mode == "verify" else r"https://u31952478\.ct\.sendgrid\.net/ls/click\?upn=.+?(?=><button|\"|\s|$)"
 
     async def extract_link(self, proxy: Optional[Proxy] = None) -> OperationResult:
         logger.info(f"Account: {self.email} | Checking email for link...")

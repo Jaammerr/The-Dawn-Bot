@@ -138,6 +138,11 @@ def load_config() -> Config:
                 reg_accounts, config.imap_settings
             )
 
+        if reverify_accounts:
+            config.accounts_to_reverify = validate_domains(
+                reverify_accounts, config.imap_settings
+            )
+
         if config.captcha_module == "2captcha" and not config.two_captcha_api_key:
             raise ValueError("2Captcha API key is missing")
         elif config.captcha_module == "anticaptcha" and not config.anti_captcha_api_key:
