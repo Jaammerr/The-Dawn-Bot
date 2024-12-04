@@ -9,7 +9,7 @@ from models import Account, OperationResult, StatisticData
 from .api import DawnExtensionAPI
 from utils import EmailValidator, LinkExtractor
 from database import Accounts
-from .exceptions.base import APIError, SessionRateLimited, CaptchaSolvingFailed
+from .exceptions.base import APIError, SessionRateLimited, CaptchaSolvingFailed, APIErrorType
 
 
 class Bot(DawnExtensionAPI):
@@ -134,34 +134,23 @@ class Bot(DawnExtensionAPI):
                 f"Account: {self.account_data.email} | Failed to confirm email"
             )
 
-
         except APIError as error:
-            if error.error_message in error.BASE_MESSAGES:
-                if error.error_message == "Incorrect answer. Try again!":
-                    logger.warning(
-                        f"Account: {self.account_data.email} | Captcha answer incorrect, re-solving..."
-                    )
+            match error.error_type:
+                case APIErrorType.INCORRECT_CAPTCHA:
+                    logger.warning(f"Account: {self.account_data.email} | Captcha answer incorrect, re-solving...")
                     if task_id:
                         await self.report_invalid_puzzle(task_id)
+                    return await self.process_reverify_email(link_sent=link_sent)
 
-                elif error.error_message == "email already exists":
+                case APIErrorType.EMAIL_EXISTS:
                     logger.warning(f"Account: {self.account_data.email} | Email already exists")
-                    return OperationResult(
-                        identifier=self.account_data.email,
-                        data=self.account_data.password,
-                        status=False,
-                    )
 
-                else:
-                    logger.warning(
-                        f"Account: {self.account_data.email} | Captcha expired, re-solving..."
-                    )
+                case APIErrorType.CAPTCHA_EXPIRED:
+                    logger.warning(f"Account: {self.account_data.email} | Captcha expired, re-solving...")
+                    return await self.process_reverify_email(link_sent=link_sent)
 
-                return await self.process_reverify_email(link_sent=link_sent)
-
-            logger.error(
-                f"Account: {self.account_data.email} | Failed to re-verify email: {error}"
-            )
+                case _:
+                    logger.error(f"Account: {self.account_data.email} | Failed to re-verify email: {error}")
 
         except Exception as error:
             logger.error(
@@ -234,40 +223,30 @@ class Bot(DawnExtensionAPI):
                 f"Account: {self.account_data.email} | Failed to confirm registration"
             )
 
+
         except APIError as error:
-            if error.error_message in error.BASE_MESSAGES:
-                if error.error_message == "Incorrect answer. Try again!":
-                    logger.warning(
-                        f"Account: {self.account_data.email} | Captcha answer incorrect, re-solving..."
-                    )
+            match error.error_type:
+                case APIErrorType.INCORRECT_CAPTCHA:
+                    logger.warning(f"Account: {self.account_data.email} | Captcha answer incorrect, re-solving...")
                     if task_id:
                         await self.report_invalid_puzzle(task_id)
+                    return await self.process_registration()
 
-                elif error.error_message == "email already exists":
+                case APIErrorType.EMAIL_EXISTS:
                     logger.warning(f"Account: {self.account_data.email} | Email already exists")
-                    return OperationResult(
-                        identifier=self.account_data.email,
-                        data=self.account_data.password,
-                        status=False,
-                    )
 
-                elif error.error_message == "Something went wrong #BR4":
+                case APIErrorType.DOMAIN_BANNED:
                     logger.warning(f"Account: {self.account_data.email} | Most likely email domain <{self.account_data.email.split('@')[1]}> is banned")
-                    return OperationResult(
-                        identifier=self.account_data.email,
-                        data=self.account_data.password,
-                        status=False,
-                    )
 
-                else:
-                    logger.warning(
-                        f"Account: {self.account_data.email} | Captcha expired, re-solving..."
-                    )
-                return await self.process_registration()
+                case APIErrorType.DOMAIN_BANNED_2:
+                    logger.warning(f"Account: {self.account_data.email} | Most likely email domain <{self.account_data.email.split('@')[1]}> is banned")
 
-            logger.error(
-                f"Account: {self.account_data.email} | Failed to register: {error}"
-            )
+                case APIErrorType.CAPTCHA_EXPIRED:
+                    logger.warning(f"Account: {self.account_data.email} | Captcha expired, re-solving...")
+                    return await self.process_registration()
+
+                case _:
+                    logger.error(f"Account: {self.account_data.email} | Failed to register: {error}")
 
         except Exception as error:
             logger.error(
@@ -309,15 +288,17 @@ class Bot(DawnExtensionAPI):
         except SessionRateLimited:
             await self.handle_session_blocked()
 
+
         except APIError as error:
-            if error.error_message == "Email not verified , Please check spam folder incase you did not get email":
-                await self.handle_invalid_account(self.account_data.email, self.account_data.password, "unverified")
-            elif error.error_message == "Something went wrong #BRL4":
-                await self.handle_invalid_account(self.account_data.email, self.account_data.password, "banned")
-            else:
-                logger.error(
-                    f"Account: {self.account_data.email} | Failed to farm: {error}"
-                )
+            match error.error_type:
+                case APIErrorType.UNVERIFIED_EMAIL:
+                    await self.handle_invalid_account(self.account_data.email, self.account_data.password, "unverified")
+
+                case APIErrorType.BANNED:
+                    await self.handle_invalid_account(self.account_data.email, self.account_data.password, "banned")
+
+                case _:
+                    logger.error(f"Account: {self.account_data.email} | Failed to farm: {error}")
 
 
         except Exception as error:
@@ -360,10 +341,20 @@ class Bot(DawnExtensionAPI):
 
         except SessionRateLimited:
             await self.handle_session_blocked()
+
         except APIError as error:
-            logger.error(
-                f"Account: {self.account_data.email} | Failed to get user info: {error}"
-            )
+            match error.error_type:
+                case APIErrorType.UNVERIFIED_EMAIL:
+                    await self.handle_invalid_account(self.account_data.email, self.account_data.password, "unverified")
+
+                case APIErrorType.BANNED:
+                    await self.handle_invalid_account(self.account_data.email, self.account_data.password, "banned")
+
+                case _:
+                    logger.error(
+                        f"Account: {self.account_data.email} | Failed to get user info: {error}"
+                    )
+
         except Exception as error:
             logger.error(
                 f"Account: {self.account_data.email} | Failed to get user info: {error}"
@@ -416,39 +407,32 @@ class Bot(DawnExtensionAPI):
             await self.login(puzzle_id, answer)
             logger.info(f"Account: {self.account_data.email} | Successfully logged in")
 
-            await Accounts.create_account(
-                email=self.account_data.email, headers=self.session.headers
-            )
+            await Accounts.create_account(email=self.account_data.email, app_id=self.account_data.appid, headers=self.session.headers)
             return True
 
         except APIError as error:
-            if error.error_message in error.BASE_MESSAGES:
-                if error.error_message == "Incorrect answer. Try again!":
-                    logger.warning(
-                        f"Account: {self.account_data.email} | Captcha answer incorrect, re-solving..."
-                    )
+            match error.error_type:
+                case APIErrorType.INCORRECT_CAPTCHA:
+                    logger.warning(f"Account: {self.account_data.email} | Captcha answer incorrect, re-solving...")
                     if task_id:
                         await self.report_invalid_puzzle(task_id)
+                    return await self.login_new_account()
 
-                elif error.error_message == "Email not verified , Please check spam folder incase you did not get email":
+                case APIErrorType.UNVERIFIED_EMAIL:
                     await self.handle_invalid_account(self.account_data.email, self.account_data.password, "unverified")
                     return False
 
-                elif error.error_message == "Something went wrong #BRL4":
+                case APIErrorType.BANNED:
                     await self.handle_invalid_account(self.account_data.email, self.account_data.password, "banned")
                     return False
 
-                else:
-                    logger.warning(
-                        f"Account: {self.account_data.email} | Captcha expired, re-solving..."
-                    )
+                case APIErrorType.CAPTCHA_EXPIRED:
+                    logger.warning(f"Account: {self.account_data.email} | Captcha expired, re-solving...")
+                    return await self.login_new_account()
 
-                return await self.login_new_account()
-
-            logger.error(
-                f"Account: {self.account_data.email} | Failed to login: {error}"
-            )
-            return False
+                case _:
+                    logger.error(f"Account: {self.account_data.email} | Failed to login: {error}")
+                    return False
 
         except CaptchaSolvingFailed:
             sleep_until = self.get_sleep_until()
@@ -497,7 +481,7 @@ class Bot(DawnExtensionAPI):
         if sleep_until > current_time:
             sleep_duration = (sleep_until - current_time).total_seconds()
             logger.debug(
-                f"Account: {self.account_data.email} | Sleeping until {sleep_until} (duration: {sleep_duration:.2f} seconds)"
+                f"Account: {self.account_data.email} | Sleeping until next action {sleep_until} (duration: {sleep_duration:.2f} seconds)"
             )
             return True
 

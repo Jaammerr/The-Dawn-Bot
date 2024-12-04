@@ -171,7 +171,7 @@ class DawnExtensionAPI:
             self.session.cookies.clear()
 
         params = {
-            'appid': 'undefined',
+            'appid': self.account_data.appid,
         }
 
         response = await self.send_request(
@@ -185,12 +185,16 @@ class DawnExtensionAPI:
         response = await self.send_request(
             method="/v1/puzzle/get-puzzle-image",
             request_type="GET",
-            params={"puzzle_id": puzzle_id, "appid": "undefined"},
+            params={"puzzle_id": puzzle_id, "appid": self.account_data.appid},
         )
 
         return response.get("imgBase64")
 
     async def register(self, puzzle_id: str, answer: str) -> dict:
+        params = {
+            'appid': self.account_data.appid,
+        }
+
         json_data = {
             "firstname": names.get_first_name(),
             "lastname": names.get_last_name(),
@@ -201,11 +205,14 @@ class DawnExtensionAPI:
             "referralCode": random.choice(config.referral_codes) if config.referral_codes else "",
             "puzzle_id": puzzle_id,
             "ans": answer,
+            'ismarketing': True,
+            'browserName': 'Chrome',
         }
 
         return await self.send_request(
             method="/v1/puzzle/validate-register",
             json_data=json_data,
+            params=params,
         )
 
     async def keepalive(self) -> dict | str:
@@ -222,11 +229,11 @@ class DawnExtensionAPI:
             "username": self.account_data.email,
             "extensionid": "fpdkjdnhkakefebpekbdhillbhonfjjp",
             "numberoftabs": 0,
-            "_v": "1.0.9",
+            "_v": "1.1.1",
         }
 
         params = {
-            'appid': 'undefined',
+            'appid': self.account_data.appid,
         }
 
         return await self.send_request(
@@ -244,7 +251,7 @@ class DawnExtensionAPI:
         del headers["Berear"]
 
         params = {
-            'appid': 'undefined',
+            'appid': self.account_data.appid,
         }
 
         response = await self.send_request(
@@ -259,7 +266,7 @@ class DawnExtensionAPI:
 
     async def resend_verify_link(self, puzzle_id: str, answer: str) -> dict:
         params = {
-            'appid': 'undefined',
+            'appid': self.account_data.appid,
         }
 
         json_data = {
@@ -314,15 +321,17 @@ class DawnExtensionAPI:
         )
 
         params = {
-            'appid': 'undefined',
+            'appid': self.account_data.appid,
         }
 
         json_data = {
             "username": self.account_data.email,
             "password": self.account_data.password,
             "logindata": {
-                "_v": "1.0.9",
-                "datetime": formatted_datetime_str,
+                '_v': {
+                    'version': '1.1.1',
+                },
+                'datetime': formatted_datetime_str,
             },
             "puzzle_id": puzzle_id,
             "ans": answer,
