@@ -24,7 +24,7 @@ class TwoCaptchaImageSolver:
                     "math": False,
                     "minLength": 6,
                     "maxLength": 6,
-                    "comment": "Pay close attention to the letter case.",
+                    "comment": "Pay special attention to the letters and signs.",
                 },
             }
 
