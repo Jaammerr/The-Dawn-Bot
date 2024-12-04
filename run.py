@@ -22,6 +22,7 @@ async def run_module_safe(
 
     async with semaphore if config.redirect_settings.enabled is False else single_semaphore:
         bot = Bot(account)
+        await account.init_appid()
         try:
             if config.delay_before_start.min > 0:
                 if process_func == process_farming and account.email not in accounts_with_initial_delay:
