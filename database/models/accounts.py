@@ -7,12 +7,13 @@ from loguru import logger
 
 class Accounts(Model):
     email = fields.CharField(max_length=255, unique=True)
+    app_id = fields.CharField(max_length=255, null=True)
     headers = fields.JSONField(null=True)
     sleep_until = fields.DatetimeField(null=True)
     session_blocked_until = fields.DatetimeField(null=True)
 
     class Meta:
-        table = "dawn_accounts_v1.4"
+        table = "dawn_accounts_v1.6"
 
     @classmethod
     async def get_account(cls, email: str):
@@ -23,15 +24,26 @@ class Accounts(Model):
         return await cls.all()
 
     @classmethod
-    async def create_account(cls, email: str, headers: dict = None):
+    async def create_account(cls, email: str, app_id: str, headers: dict = None):
         account = await cls.get_account(email=email)
         if account is None:
-            account = await cls.create(email=email, headers=headers)
+            account = await cls.create(email=email, headers=headers, app_id=app_id)
             return account
         else:
             account.headers = headers
+            account.app_id = app_id
+
             await account.save()
             return account
+
+
+    @classmethod
+    async def get_app_id(cls, email: str) -> str | None:
+        account = await cls.get_account(email=email)
+        if account is None:
+            return None
+
+        return account.app_id
 
     @classmethod
     async def delete_account(cls, email: str):
