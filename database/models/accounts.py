@@ -72,11 +72,11 @@ class Accounts(Model):
 
     @classmethod
     async def set_session_blocked_until(
-        cls, email: str, session_blocked_until: datetime
+        cls, email: str, app_id: str, session_blocked_until: datetime
     ):
         account = await cls.get_account(email=email)
         if account is None:
-            account = await cls.create_account(email=email)
+            account = await cls.create_account(email=email, app_id=app_id)
             account.session_blocked_until = session_blocked_until
             await account.save()
             logger.info(

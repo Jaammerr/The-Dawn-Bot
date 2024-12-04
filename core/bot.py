@@ -472,7 +472,7 @@ class Bot(DawnExtensionAPI):
             f"Account: {self.account_data.email} | Session rate-limited | Sleeping..."
         )
         sleep_until = self.get_sleep_until(blocked=True)
-        await Accounts.set_session_blocked_until(self.account_data.email, sleep_until)
+        await Accounts.set_session_blocked_until(email=self.account_data.email, session_blocked_until=sleep_until, app_id=self.account_data.appid)
 
     async def handle_sleep(self, sleep_until):
         current_time = datetime.now(pytz.UTC)
