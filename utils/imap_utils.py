@@ -1,3 +1,4 @@
+import os
 import ssl
 import re
 import asyncio
@@ -12,6 +13,9 @@ from better_proxy import Proxy
 from python_socks.sync import Proxy as SyncProxy
 
 from models import OperationResult
+
+
+os.environ['SSLKEYLOGFILE'] = ''
 
 
 class IMAP4Proxy(IMAP4):
@@ -70,6 +74,10 @@ class MailBoxClient(MailBox):
         super().__init__(host=host, port=port, timeout=timeout, ssl_context=ssl_context)
 
     def _get_mailbox_client(self):
+        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS)
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+
         if self._proxy:
             return IMAP4SSlProxy(
                 self._host,
@@ -77,14 +85,14 @@ class MailBoxClient(MailBox):
                 port=self._port,
                 rdns=self._rdns,
                 timeout=self._timeout,
-                ssl_context=self._ssl_context,
+                ssl_context=ssl_context,
             )
         else:
             return IMAP4_SSL(
                 self._host,
                 port=self._port,
                 timeout=self._timeout,
-                ssl_context=self._ssl_context,
+                ssl_context=ssl_context,
             )
 
 
