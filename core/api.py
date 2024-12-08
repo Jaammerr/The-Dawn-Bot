@@ -290,6 +290,10 @@ class DawnExtensionAPI:
         headers["content-type"] = "application/json"
         del headers["Berear"]
 
+        params = {
+            'appid': self.account_data.appid,
+        }
+
         for task in tasks:
             json_data = {
                 task: task,
@@ -299,6 +303,7 @@ class DawnExtensionAPI:
                 method="/v1/profile/update",
                 json_data=json_data,
                 headers=headers,
+                params=params,
             )
 
             await asyncio.sleep(delay)
