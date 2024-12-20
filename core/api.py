@@ -229,7 +229,7 @@ class DawnExtensionAPI:
             "username": self.account_data.email,
             "extensionid": "fpdkjdnhkakefebpekbdhillbhonfjjp",
             "numberoftabs": 0,
-            "_v": "1.1.1",
+            "_v": "1.1.2",
         }
 
         params = {
@@ -334,7 +334,7 @@ class DawnExtensionAPI:
             "password": self.account_data.password,
             "logindata": {
                 '_v': {
-                    'version': '1.1.1',
+                    'version': '1.1.2',
                 },
                 'datetime': formatted_datetime_str,
             },

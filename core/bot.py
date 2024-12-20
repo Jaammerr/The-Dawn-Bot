@@ -149,6 +149,11 @@ class Bot(DawnExtensionAPI):
                     logger.warning(f"Account: {self.account_data.email} | Captcha expired, re-solving...")
                     return await self.process_reverify_email(link_sent=link_sent)
 
+                case APIErrorType.SESSION_EXPIRED:
+                    logger.warning(f"Account: {self.account_data.email} | Session expired, re-logging in...")
+                    await self.clear_account_and_session()
+                    return await self.process_reverify_email(link_sent=link_sent)
+
                 case _:
                     logger.error(f"Account: {self.account_data.email} | Failed to re-verify email: {error}")
 
@@ -297,6 +302,11 @@ class Bot(DawnExtensionAPI):
                 case APIErrorType.BANNED:
                     await self.handle_invalid_account(self.account_data.email, self.account_data.password, "banned")
 
+                case APIErrorType.SESSION_EXPIRED:
+                    logger.warning(f"Account: {self.account_data.email} | Session expired, re-logging in...")
+                    await self.clear_account_and_session()
+                    return await self.process_farming()
+
                 case _:
                     logger.error(f"Account: {self.account_data.email} | Failed to farm: {error}")
 
@@ -349,6 +359,11 @@ class Bot(DawnExtensionAPI):
 
                 case APIErrorType.BANNED:
                     await self.handle_invalid_account(self.account_data.email, self.account_data.password, "banned")
+
+                case APIErrorType.SESSION_EXPIRED:
+                    logger.warning(f"Account: {self.account_data.email} | Session expired, re-logging in...")
+                    await self.clear_account_and_session()
+                    return await self.process_get_user_info()
 
                 case _:
                     logger.error(
