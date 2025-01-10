@@ -53,6 +53,7 @@ class Config(BaseModel):
     delay_before_start: DelayBeforeStart
 
     threads: PositiveInt
+    use_proxy_for_imap: bool
     imap_settings: dict[str, str]
 
     keepalive_interval: PositiveInt
