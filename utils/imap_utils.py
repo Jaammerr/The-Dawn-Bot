@@ -241,7 +241,8 @@ class LinkExtractor:
                             all_messages.extend(messages)
 
                     except Exception as e:
-                        logger.warning(f"Account: {self.email} | Error in folder {folder.name}: {str(e)} | Skipping...")
+                        # logger.warning(f"Account: {self.email} | Error in folder {folder.name}: {str(e)} | Skipping...")
+                        pass
 
                 return self._process_latest_message(all_messages) if all_messages else None
 
