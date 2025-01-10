@@ -160,7 +160,11 @@ class LinkExtractor:
         self.max_attempts = max_attempts
         self.delay_seconds = delay_seconds
         self.redirect_email = redirect_email
-        self.link_pattern = r"(https://www\.aeropres\.in/chromeapi/dawn/v1/userverify/verifyconfirm\?key=[a-f0-9-]+)"
+        self.link_patterns = [
+            r"(https://www\.aeropres\.in/chromeapi/dawn/v1/userverify/verifyconfirm\?key=[a-f0-9-]+)",
+            r"(https?://webmail\.online/go\.php\?r=(?:[A-Za-z0-9+/]|%[0-9A-Fa-f]{2})+)",
+            r"(https?://u\d+\.ct\.sendgrid\.net/ls/click\?upn=[A-Za-z0-9\-_%.]+(?:[A-Za-z0-9\-_%.=&])*)"
+        ]
 
     async def extract_link(self, proxy: Optional[Proxy] = None) -> OperationResult:
         logger.info(f"Account: {self.email} | Checking email for link...")
@@ -210,14 +214,15 @@ class LinkExtractor:
         if not body:
             return None
 
-        if match := re.search(self.link_pattern, body):
-            code = str(match.group(1))
+        for link_pattern in self.link_patterns:
+            if match := re.search(link_pattern, body):
+                code = str(match.group(1))
 
-            if self._link_cache.is_link_used(code):
-                return None
+                if self._link_cache.is_link_used(code):
+                    return None
 
-            self._link_cache.add_link(self.email, code)
-            return code
+                self._link_cache.add_link(self.email, code)
+                return code
 
         return None
 
