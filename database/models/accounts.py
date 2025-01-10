@@ -7,8 +7,8 @@ from loguru import logger
 
 class Accounts(Model):
     email = fields.CharField(max_length=255, unique=True)
-    app_id = fields.CharField(max_length=255, null=True)
-    headers = fields.JSONField(null=True)
+    app_id = fields.CharField(max_length=50, null=True)
+    auth_token = fields.CharField(max_length=512, null=True)
     sleep_until = fields.DatetimeField(null=True)
     session_blocked_until = fields.DatetimeField(null=True)
 
@@ -24,13 +24,13 @@ class Accounts(Model):
         return await cls.all()
 
     @classmethod
-    async def create_account(cls, email: str, app_id: str, headers: dict = None):
+    async def create_account(cls, email: str, app_id: str, auth_token: str = None):
         account = await cls.get_account(email=email)
         if account is None:
-            account = await cls.create(email=email, headers=headers, app_id=app_id)
+            account = await cls.create(email=email, auth_token=auth_token, app_id=app_id)
             return account
         else:
-            account.headers = headers
+            account.auth_token = auth_token
             account.app_id = app_id
 
             await account.save()
