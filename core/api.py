@@ -6,7 +6,7 @@ import names
 
 from datetime import datetime, timezone
 from typing import Literal, Any
-from curl_cffi.requests import AsyncSession
+from curl_cffi.requests import AsyncSession, Response
 
 from models import Account
 from .exceptions.base import APIError, SessionRateLimited, ServerError
@@ -34,6 +34,11 @@ class APIClient:
             }
 
         return session
+
+
+    async def clear_request(self, url: str) -> Response:
+        session = self._create_session()
+        return await session.get(url, allow_redirects=True, verify=False)
 
     @staticmethod
     async def _verify_response(response_data: dict | list):

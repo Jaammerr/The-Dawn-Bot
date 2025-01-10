@@ -154,7 +154,12 @@ class Bot(DawnExtensionAPI):
                 f"Account: {self.account_data.email} | Link found, confirming email..."
             )
 
-            key = confirm_url["data"].split("key=")[1]
+            try:
+                key = confirm_url["data"].split("key=")[1]
+            except IndexError:
+                response = await self.clear_request(confirm_url["data"])
+                key = response.url.split("key=")[1]
+
             cloudflare_token = await self.get_captcha_data("turnistale")
             await self.verify_registration(key, cloudflare_token)
 
@@ -234,7 +239,12 @@ class Bot(DawnExtensionAPI):
                 f"Account: {self.account_data.email} | Link found, confirming registration..."
             )
 
-            key = confirm_url["data"].split("key=")[1]
+            try:
+                key = confirm_url["data"].split("key=")[1]
+            except IndexError:
+                response = await self.clear_request(confirm_url["data"])
+                key = response.url.split("key=")[1]
+
             cloudflare_token = await self.get_captcha_data("turnistale")
             await self.verify_registration(key, cloudflare_token)
 
