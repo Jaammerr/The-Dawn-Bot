@@ -3,14 +3,43 @@ from typing import Any, Tuple
 import httpx
 
 
-class AntiCaptchaImageSolver:
+class AntiCaptchaSolver:
     BASE_URL = "https://api.anti-captcha.com"
 
     def __init__(self, api_key: str):
         self.api_key = api_key
         self.client = httpx.AsyncClient(timeout=10)
 
-    async def solve(self, image: str) -> Tuple[str, bool]:
+
+    async def solve_turnistale(self):
+        try:
+            captcha_data = {
+                "clientKey": self.api_key,
+                "softId": 1201,
+                "task": {
+                    "type": "TurnstileTaskProxyless",
+                    "websiteURL": "https://www.aeropres.in/",
+                    "websiteKey": "0x4AAAAAAA0DVmzm9PiLTNuf",
+                },
+            }
+
+            resp = await self.client.post(
+                f"{self.BASE_URL}/createTask", json=captcha_data
+            )
+            resp.raise_for_status()
+            data = resp.json()
+
+            if data.get("errorId") == 0:
+                return await self.get_captcha_result(data.get("taskId"))
+            return data.get("errorDescription"), False
+
+        except httpx.HTTPStatusError as err:
+            return f"HTTP error occurred: {err}", False
+
+        except Exception as err:
+            return f"An unexpected error occurred: {err}", False
+
+    async def solve_image(self, image: str) -> Tuple[str, bool]:
         try:
             captcha_data = {
                 "clientKey": self.api_key,
@@ -40,6 +69,7 @@ class AntiCaptchaImageSolver:
 
         except httpx.HTTPStatusError as err:
             return f"HTTP error occurred: {err}", False
+
         except Exception as err:
             return f"An unexpected error occurred: {err}", False
 
@@ -57,6 +87,9 @@ class AntiCaptchaImageSolver:
                     return result.get("errorDescription"), False
 
                 if result.get("status") == "ready":
+                    if result["solution"].get("token"):
+                        return result["solution"].get("token", ""), True
+
                     return result["solution"].get("text", ""), True
 
                 await asyncio.sleep(3)

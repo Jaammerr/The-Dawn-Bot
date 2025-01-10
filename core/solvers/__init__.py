@@ -1,2 +1,2 @@
-from .anti_captcha import AntiCaptchaImageSolver
-from .two_captcha import TwoCaptchaImageSolver
+from .anti_captcha import AntiCaptchaSolver
+from .two_captcha import TwoCaptchaSolver
