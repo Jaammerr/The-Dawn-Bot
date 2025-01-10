@@ -1,74 +1,82 @@
-# ===========================================
-#        Application Configuration
-# ===========================================
-# This configuration file controls the core behavior and settings
-# of the application, including threading, email, and captcha services.
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#                           Application Configuration
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Master configuration file for the application's core services and functionality.
+# Includes settings for multi-threading, email handling, and security features.
 
-# ==================
-# Core Settings
-# ==================
-# Essential application parameters that control basic functionality
+# ┌────────────────────────┐
+# │     Core Settings      │
+# └────────────────────────┘
+# Foundation settings that determine the application's basic operational parameters
 
-threads: 30                    # Number of worker threads for concurrent operations
-                              # Minimum: 1, Recommended: 10-50 based on system resources
+threads: 3                    # Controls parallel processing capacity
+                             # Higher values increase performance but consume more resources
 
-keepalive_interval: 120       # Keepalive signal frequency in seconds
-                             # Controls connection health monitoring
+use_proxy_for_imap: false    # Enables secure proxy routing for IMAP connections
+                             # Recommended for enhanced privacy and security
 
-referral_codes:              # List of referral codes for tracking and rewards
-  - ""                       # Add multiple codes as needed, one per line
+keepalive_interval: 300      # Connection monitoring frequency (seconds)
+                             # Ensures stable network connectivity
 
-# ======================
-# Redirect Configuration
-# ======================
-# Email redirection and proxy settings for message handling
+referral_codes:              # Marketing tracking codes
+  - ""                       # Add multiple entries for different campaigns
+
+# ┌────────────────────────┐
+# │  Email Redirection     │
+# └────────────────────────┘
+# Configuration for automated email forwarding and handling
 
 redirect_settings:
-  enabled: false             # Master switch for mail redirection functionality
-  email: "test@gmail.com"    # Primary redirect email address
-  password: "password"       # Authentication credentials (store securely!)
-  imap_server: "imap.gmail.com"  # IMAP server for mail retrieval
-  use_proxy: true           # Enable proxy support for enhanced privacy
+  enabled: false             # Main switch for email redirection system
+  email: ""                  # Target email for redirected messages
+  password: ""               # Access credentials (use secure storage!)
+  imap_server: ""  # Mail server address
+  use_proxy: false           # Optional proxy protection layer
 
-# ====================
-# Captcha Integration
-# ====================
-# Settings for automated CAPTCHA solving services
+# ┌────────────────────────┐
+# │   CAPTCHA Services     │
+# └────────────────────────┘
+# Integration settings for automated CAPTCHA resolution
 
-captcha_module: 2captcha     # Supported services:
-                            # - '2captcha': Primary service
-                            # - 'anticaptcha': Alternative service
+captcha_module: 2captcha     # CAPTCHA service selection:
+                             # ▸ 2captcha: Primary solution
+                             # ▸ anticaptcha: Secondary option
 
-two_captcha_api_key: ""     # API authentication key for 2captcha service
-anti_captcha_api_key: ""    # API authentication key for anticaptcha service
+two_captcha_api_key: ""      # Authentication key for 2captcha
+anti_captcha_api_key: ""     # Authentication key for anticaptcha
 
-# ======================
-# Startup Configuration
-# ======================
-# Control application initialization timing
+# ┌────────────────────────┐
+# │    Startup Timing      │
+# └────────────────────────┘
+# Application initialization delay configuration
 
 delay_before_start:
-  min: 2                    # Minimum startup delay in seconds
-  max: 3                    # Maximum startup delay in seconds
-                           # Randomized between min and max values
+  min: 2                     # Minimum delay duration (seconds)
+  max: 3                     # Maximum delay duration (seconds)
+                             # System will randomly select a value in this range
 
-# ==============================
-# Email Provider Configuration
-# ==============================
-# Comprehensive list of IMAP server settings for major email providers
+# ┌────────────────────────┐
+# │ Mail Server Directory  │
+# └────────────────────────┘
+# Comprehensive IMAP server mappings for supported email providers
 
 imap_settings:
-  # Global Email Services
-  gmail.com: imap.gmail.com          # Google Mail - SSL required
-  yahoo.com: imap.mail.yahoo.com     # Yahoo Mail - SSL required
-  icloud.com: imap.mail.me.com       # Apple iCloud - 2FA may be required
+  # Global Services
+  gmail.com: imap.gmail.com          # Google Mail (SSL required)
+  yahoo.com: imap.mail.yahoo.com     # Yahoo Mail (SSL required)
+  icloud.com: imap.mail.me.com       # Apple iCloud (2FA might be needed)
 
-  # Regional Email Services
-  mail.ru: imap.mail.ru              # Mail.ru - Popular in CIS regions
+  # Russian Services
+  mail.ru: imap.mail.ru              # Mail.ru service
 
-  # European Services
-  gmx.com: imap.gmx.com              # GMX Mail - International
+  # European Providers
+  gmx.com: imap.gmx.com              # GMX International
   gmx.net: imap.gmx.net              # GMX Germany - Primary
-  gmx.de: imap.gmx.net               # GMX Germany - Alternative
-  onet.pl: imap.poczta.onet.pl       # Onet - Polish service
-  onet.com.pl: imap.poczta.onet.pl   # Onet - Alternative domain
+  gmx.de: imap.gmx.net               # GMX Germany - Secondary
+
+  # Polish Services
+  onet.pl: imap.poczta.onet.pl       # Onet Mail - Primary
+  onet.com.pl: imap.poczta.onet.pl   # Onet Mail - Secondary
+  op.pl: imap.poczta.onet.pl         # Onet Mail - Legacy
+  onet.eu: imap.poczta.onet.pl       # Onet Mail - European
+  gazeta.pl: imap.gazeta.pl          # Gazeta Mail Service
