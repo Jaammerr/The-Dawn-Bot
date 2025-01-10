@@ -8,7 +8,7 @@ from loguru import logger
 class Accounts(Model):
     email = fields.CharField(max_length=255, unique=True)
     app_id = fields.CharField(max_length=50, null=True)
-    auth_token = fields.CharField(max_length=512, null=True)
+    auth_token = fields.CharField(max_length=1024, null=True)
     sleep_until = fields.DatetimeField(null=True)
     session_blocked_until = fields.DatetimeField(null=True)
 
