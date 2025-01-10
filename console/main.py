@@ -43,7 +43,7 @@ class Console:
         title = text2art("JamBit", font="small")
         styled_title = Text(title, style="bold cyan")
 
-        version = Text("VERSION: 1.6", style="blue")
+        version = Text("VERSION: 1.7", style="blue")
         telegram = Text("Channel: https://t.me/JamBitPY", style="green")
         github = Text("GitHub: https://github.com/Jaammerr", style="green")
 
