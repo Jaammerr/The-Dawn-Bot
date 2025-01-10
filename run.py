@@ -4,7 +4,7 @@ import sys
 from typing import Callable, Coroutine, Any, List, Set
 
 from loguru import logger
-from loader import config, semaphore, file_operations, single_semaphore
+from loader import config, semaphore, file_operations
 from core.bot import Bot
 from models import Account
 from utils import setup
@@ -20,7 +20,7 @@ async def run_module_safe(
 ) -> Any:
     global accounts_with_initial_delay
 
-    async with semaphore if config.redirect_settings.enabled is False else single_semaphore:
+    async with semaphore:
         bot = Bot(account)
         await account.init_appid()
         try:
