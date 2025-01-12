@@ -72,14 +72,18 @@ class Bot(DawnExtensionAPI):
 
 
     @staticmethod
-    async def handle_invalid_account(email: str, password: str, reason: Literal["unverified", "banned"]) -> None:
+    async def handle_invalid_account(email: str, password: str, reason: Literal["unverified", "banned", "unregistered"]) -> None:
         if reason == "unverified":
             logger.error(f"Account: {email} | Email not verified, run re-verify module | Removed from farming")
             await file_operations.export_unverified_email(email, password)
 
-        else:
+        elif reason == "banned":
             logger.error(f"Account: {email} | Account is banned | Removed from list")
             await file_operations.export_banned_email(email, password)
+
+        elif reason == "unregistered":
+            logger.error(f"Account: {email} | Account is not registered | Removed from list")
+            await file_operations.export_unregistered_email(email, password)
 
         for account in config.accounts_to_farm:
             if account.email == email:
@@ -326,6 +330,9 @@ class Bot(DawnExtensionAPI):
                 case APIErrorType.BANNED:
                     await self.handle_invalid_account(self.account_data.email, self.account_data.password, "banned")
 
+                case APIErrorType.UNREGISTERED_EMAIL:
+                    await self.handle_invalid_account(self.account_data.email, self.account_data.password, "unregistered")
+
                 case APIErrorType.SESSION_EXPIRED:
                     logger.warning(f"Account: {self.account_data.email} | Session expired, re-logging in...")
                     await self.clear_account_and_session()
@@ -380,6 +387,9 @@ class Bot(DawnExtensionAPI):
 
                 case APIErrorType.BANNED:
                     await self.handle_invalid_account(self.account_data.email, self.account_data.password, "banned")
+
+                case APIErrorType.UNREGISTERED_EMAIL:
+                    await self.handle_invalid_account(self.account_data.email, self.account_data.password, "unregistered")
 
                 case APIErrorType.SESSION_EXPIRED:
                     logger.warning(f"Account: {self.account_data.email} | Session expired, re-logging in...")
@@ -459,6 +469,10 @@ class Bot(DawnExtensionAPI):
 
                 case APIErrorType.UNVERIFIED_EMAIL:
                     await self.handle_invalid_account(self.account_data.email, self.account_data.password, "unverified")
+                    return False
+
+                case APIErrorType.UNREGISTERED_EMAIL:
+                    await self.handle_invalid_account(self.account_data.email, self.account_data.password, "unregistered")
                     return False
 
                 case APIErrorType.BANNED:

@@ -10,6 +10,7 @@ class APIErrorType(Enum):
     DOMAIN_BANNED_2 = "Something went wrong #BR10"
     CAPTCHA_EXPIRED = "refresh your captcha!!"
     SESSION_EXPIRED = "Your app session expired, Please login again."
+    UNREGISTERED_EMAIL = "user not found"
 
 
 class APIError(Exception):

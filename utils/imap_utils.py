@@ -163,7 +163,7 @@ class LinkExtractor:
         self.link_patterns = [
             r"(https://www\.aeropres\.in/chromeapi/dawn/v1/userverify/verifyconfirm\?key=[a-f0-9-]+)",
             r"(https?://webmail\.online/go\.php\?r=(?:[A-Za-z0-9+/]|%[0-9A-Fa-f]{2})+)",
-            r"(https?://u\d+\.ct\.sendgrid\.net/ls/click\?upn=[A-Za-z0-9\-_%.]+(?:[A-Za-z0-9\-_%.=&])*)"
+            r"(https?://u\d+\.ct\.sendgrid\.net/ls/click\?upn=[A-Za-z0-9\-_%.+=]+(?:[A-Za-z0-9\-_%.=&+])*)"
         ]
 
     async def extract_link(self, proxy: Optional[Proxy] = None) -> OperationResult:
