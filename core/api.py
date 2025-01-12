@@ -204,7 +204,6 @@ class DawnExtensionAPI(APIClient):
         headers.update({
             "authorization": f"Bearer {HeadersManager.BEARER_TOKEN}",
             "content-type": "application/json",
-            "if-none-match": 'W/"35c-y40WIgI/YI2fp1Plkx3ifV8dAKE"',
         })
 
         response = await self.send_request(
