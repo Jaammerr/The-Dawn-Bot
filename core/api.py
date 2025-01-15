@@ -202,7 +202,7 @@ class DawnExtensionAPI(APIClient):
     async def user_info(self) -> dict:
         headers = HeadersManager.get_base_headers()
         headers.update({
-            "authorization": f"Bearer {HeadersManager.BEARER_TOKEN}",
+            "authorization": f"Berear {HeadersManager.BEARER_TOKEN}",
             "content-type": "application/json",
         })
 
