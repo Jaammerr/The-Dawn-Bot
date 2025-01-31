@@ -121,8 +121,8 @@ captcha_module: 2captcha      # CAPTCHA service selection:
                               # ► 2captcha: Primary solution
                               # ► anticaptcha: Secondary option
 
-two_captcha_api_key: "18f4fb27711cac1838e6425e06779b49"       # Authentication key for 2captcha
-anti_captcha_api_key: "05f16e2bfe825feaf4af7ed52acfa979"      # Authentication key for anticaptcha
+two_captcha_api_key: ""       # Authentication key for 2captcha
+anti_captcha_api_key: ""      # Authentication key for anticaptcha
 
 # ┏━━━━━━━━━━━━━━━━━━━━━┓
 # ┃   STARTUP TIMING     ┃
