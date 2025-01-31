@@ -7,7 +7,7 @@
     <a href="https://t.me/JamBitPY">
       <img src="https://img.shields.io/badge/Telegram-Channel-blue?style=for-the-badge&logo=telegram" alt="Telegram Channel">
     </a>
-    <a href="https://t.me/JamBitChat">
+    <a href="https://t.me/+-4HDHSdBgiYxNGRi">
       <img src="https://img.shields.io/badge/Telegram-Chat-blue?style=for-the-badge&logo=telegram" alt="Telegram Chat">
     </a>
   </p>
