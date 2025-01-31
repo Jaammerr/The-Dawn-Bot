@@ -3,7 +3,7 @@ from typing import Tuple, Any, Optional, Literal
 
 import pytz
 from loguru import logger
-from loader import config, file_operations, captcha_solver, headers_manager
+from loader import config, file_operations, captcha_solver
 from models import Account, OperationResult, StatisticData
 
 from .api import DawnExtensionAPI
@@ -16,65 +16,15 @@ class Bot(DawnExtensionAPI):
     def __init__(self, account: Account):
         super().__init__(account)
 
-    async def get_captcha_data(self, captcha_type: Literal["image", "turnistale"]) -> Tuple[str, Any, Optional[Any]] | str:
-        for _ in range(5):
-            try:
-                if captcha_type == "image":
-                    puzzle_id = await self.get_puzzle_id()
-                    image = await self.get_puzzle_image(puzzle_id)
-
-                    logger.info(
-                        f"Account: {self.account_data.email} | Got puzzle image, solving..."
-                    )
-                    answer, solved, *rest = await captcha_solver.solve_image(image)
-
-                    if solved and len(answer) == 6:
-                        logger.success(
-                            f"Account: {self.account_data.email} | Puzzle solved: {answer}"
-                        )
-                        return puzzle_id, answer, rest[0] if rest else None
-
-                    if len(answer) != 6 and rest:
-                        await captcha_solver.report_bad(rest[0])
-
-                    logger.error(
-                        f"Account: {self.account_data.email} | Failed to solve puzzle: {answer} | Retrying..."
-                    )
-
-                elif captcha_type == "turnistale":
-                    logger.info(f"Account: {self.account_data.email} | Solving Cloudflare challenge...")
-                    answer, solved, *rest = await captcha_solver.solve_turnistale()
-
-                    if solved:
-                        logger.success(
-                            f"Account: {self.account_data.email} | Cloudflare challenge solved"
-                        )
-                        return answer
-
-                    logger.error(
-                        f"Account: {self.account_data.email} | Failed to solve Cloudflare challenge: {answer} | Retrying..."
-                    )
-
-            except SessionRateLimited:
-                raise
-
-            except Exception as e:
-                logger.error(
-                    f"Account: {self.account_data.email} | Error occurred while solving captcha ({captcha_type}): {str(e)} | Retrying..."
-                )
-
-        raise CaptchaSolvingFailed("Failed to solve captcha after 5 attempts")
-
     async def clear_account_and_session(self) -> None:
         if await Accounts.get_account(email=self.account_data.email):
             await Accounts.delete_account(email=self.account_data.email)
         self.session = self._create_session()
 
-
     @staticmethod
     async def handle_invalid_account(email: str, password: str, reason: Literal["unverified", "banned", "unregistered"]) -> None:
         if reason == "unverified":
-            logger.error(f"Account: {email} | Email not verified, run re-verify module | Removed from farming")
+            logger.error(f"Account: {email} | Email not verified, run re-verify module | Removed from list")
             await file_operations.export_unverified_email(email, password)
 
         elif reason == "banned":
@@ -88,6 +38,15 @@ class Bot(DawnExtensionAPI):
         for account in config.accounts_to_farm:
             if account.email == email:
                 config.accounts_to_farm.remove(account)
+
+    @staticmethod
+    def get_sleep_until(blocked: bool = False) -> datetime:
+        duration = (
+            timedelta(minutes=10)
+            if blocked
+            else timedelta(seconds=config.keepalive_interval)
+        )
+        return datetime.now(pytz.UTC) + duration
 
 
     async def _validate_email(self) -> dict:
@@ -124,6 +83,52 @@ class Bot(DawnExtensionAPI):
 
         return confirm_url
 
+    async def get_captcha_data(
+            self,
+            captcha_type: Literal["image", "turnistale"],
+            max_attempts: int = 5
+    ) -> Tuple[str, Any, Optional[Any]] | str:
+        async def handle_image_captcha() -> Tuple[str, str, Optional[Any]]:
+            puzzle_id = await self.get_puzzle_id()
+            image = await self.get_puzzle_image(puzzle_id)
+
+            logger.info(f"Account: {self.account_data.email} | Got puzzle image, solving...")
+            answer, solved, *rest = await captcha_solver.solve_image(image)
+
+            if solved and len(answer) == 6:
+                logger.success(f"Account: {self.account_data.email} | Puzzle solved: {answer}")
+                return puzzle_id, answer, rest[0] if rest else None
+
+            if len(answer) != 6 and rest:
+                await captcha_solver.report_bad(rest[0])
+
+            logger.error(f"Account: {self.account_data.email} | Failed to solve puzzle: {answer}")
+            raise ValueError(f"Failed to solve puzzle: {answer}")
+
+        async def handle_turnistale_captcha() -> str:
+            logger.info(f"Account: {self.account_data.email} | Solving Cloudflare challenge...")
+            answer, solved, *rest = await captcha_solver.solve_turnistale()
+
+            if solved:
+                logger.success(f"Account: {self.account_data.email} | Cloudflare challenge solved")
+                return answer
+
+            logger.error(f"Account: {self.account_data.email} | Failed to solve Cloudflare challenge: {answer}")
+            raise ValueError(f"Failed to solve Cloudflare challenge: {answer}")
+
+        handler = handle_image_captcha if captcha_type == "image" else handle_turnistale_captcha
+        for attempt in range(max_attempts):
+            try:
+                return await handler()
+            except SessionRateLimited:
+                raise
+            except Exception as e:
+                logger.error(
+                    f"Account: {self.account_data.email} | Error occurred while solving captcha ({captcha_type}): {str(e)} | Retrying..."
+                )
+                if attempt == max_attempts - 1:
+                    raise CaptchaSolvingFailed(f"Failed to solve captcha after {max_attempts} attempts")
+
     async def process_reverify_email(self, link_sent: bool = False) -> OperationResult:
         task_id = None
 
@@ -138,8 +143,10 @@ class Bot(DawnExtensionAPI):
                 )
 
             logger.info(f"Account: {self.account_data.email} | Re-verifying email...")
-            puzzle_id, answer, task_id = await self.get_captcha_data("image")
+            if not self.account_data.appid:
+                self.account_data.appid = await self.get_app_id()
 
+            puzzle_id, answer, task_id = await self.get_captcha_data("image")
             if not link_sent:
                 await self.resend_verify_link(puzzle_id, answer)
                 logger.info(f"Account: {self.account_data.email} | Successfully resent verification email, waiting for email...")
@@ -194,6 +201,10 @@ class Bot(DawnExtensionAPI):
                     await self.clear_account_and_session()
                     return await self.process_reverify_email(link_sent=link_sent)
 
+                case APIErrorType.INVALID_CAPTCHA_TOKEN:
+                    logger.warning(f"Account: {self.account_data.email} | Invalid captcha token, re-solving...")
+                    return await self.process_reverify_email(link_sent=link_sent)
+
                 case _:
                     logger.error(f"Account: {self.account_data.email} | Failed to re-verify email: {error}")
 
@@ -223,9 +234,9 @@ class Bot(DawnExtensionAPI):
                 )
 
             logger.info(f"Account: {self.account_data.email} | Registering...")
-            puzzle_id, answer, task_id = await self.get_captcha_data("image")
+            captcha_token = await self.get_captcha_data("turnistale")
 
-            await self.register(puzzle_id, answer)
+            await self.register(captcha_token)
             logger.info(
                 f"Account: {self.account_data.email} | Registered, waiting for email..."
             )
@@ -275,6 +286,10 @@ class Bot(DawnExtensionAPI):
                     logger.warning(f"Account: {self.account_data.email} | Captcha expired, re-solving...")
                     return await self.process_registration()
 
+                case APIErrorType.INVALID_CAPTCHA_TOKEN:
+                    logger.warning(f"Account: {self.account_data.email} | Invalid captcha token, re-solving...")
+                    return await self.process_registration()
+
                 case _:
                     if "Something went wrong" in error.error_message:
                         logger.warning(f"Account: {self.account_data.email} | Most likely email domain <{self.account_data.email.split('@')[1]}> is banned")
@@ -291,15 +306,6 @@ class Bot(DawnExtensionAPI):
             data=self.account_data.password,
             status=False,
         )
-
-    @staticmethod
-    def get_sleep_until(blocked: bool = False) -> datetime:
-        duration = (
-            timedelta(minutes=10)
-            if blocked
-            else timedelta(seconds=config.keepalive_interval)
-        )
-        return datetime.now(pytz.UTC) + duration
 
     async def process_farming(self) -> None:
         try:
@@ -320,7 +326,6 @@ class Bot(DawnExtensionAPI):
 
         except SessionRateLimited:
             await self.handle_session_blocked()
-
 
         except APIError as error:
             match error.error_type:
@@ -451,12 +456,13 @@ class Bot(DawnExtensionAPI):
 
         try:
             logger.info(f"Account: {self.account_data.email} | Logging in...")
+            self.account_data.appid = await self.get_app_id()
             puzzle_id, answer, task_id = await self.get_captcha_data("image")
 
-            await self.login(puzzle_id, answer)
+            self.account_data.auth_token = await self.login(puzzle_id, answer)
             logger.info(f"Account: {self.account_data.email} | Successfully logged in")
 
-            await Accounts.create_account(email=self.account_data.email, app_id=self.account_data.appid, auth_token=headers_manager.BEARER_TOKEN)
+            await Accounts.create_account(email=self.account_data.email, app_id=self.account_data.appid, auth_token=self.account_data.auth_token)
             return True
 
         except APIError as error:
@@ -512,7 +518,6 @@ class Bot(DawnExtensionAPI):
             ):
                 return False
 
-        headers_manager.BEARER_TOKEN = db_account_data.auth_token
         status, result = await self.verify_session()
         if not status:
             logger.warning(
@@ -545,14 +550,6 @@ class Bot(DawnExtensionAPI):
 
         return False
 
-    async def close_session(self):
-        try:
-            await self.session.close()
-        except Exception as error:
-            logger.debug(
-                f"Account: {self.account_data.email} | Failed to close session: {error}"
-            )
-
     async def perform_farming_actions(self):
         try:
             await self.keepalive()
@@ -574,4 +571,12 @@ class Bot(DawnExtensionAPI):
             new_sleep_until = self.get_sleep_until()
             await Accounts.set_sleep_until(
                 email=self.account_data.email, sleep_until=new_sleep_until
+            )
+
+    async def close_session(self):
+        try:
+            await self.session.close()
+        except Exception as error:
+            logger.debug(
+                f"Account: {self.account_data.email} | Failed to close session: {error}"
             )

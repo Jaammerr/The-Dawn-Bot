@@ -1,8 +1,9 @@
-import hashlib
-import random
+from dataclasses import dataclass
 from typing import Literal
+
 import secrets
 import string
+import random
 
 from better_proxy import Proxy
 from pydantic import BaseModel, PositiveInt, ConfigDict, Field
@@ -10,25 +11,18 @@ from pydantic import BaseModel, PositiveInt, ConfigDict, Field
 from database import Accounts
 
 
-class Account(BaseModel):
+class BaseConfig(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    email: str
-    password: str = Field(default_factory=lambda: ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(random.randint(10, 14))))
-    appid: str = ""
-    imap_server: str = "imap.gmail.com"
-    proxy: Proxy
 
-    async def init_appid(self):
-        existing_appid = await Accounts.get_app_id(self.email)
-        if existing_appid:
-            self.appid = existing_appid
-        else:
-            self.appid = hashlib.md5(str(random.getrandbits(128)).encode()).hexdigest()[:24]
+@dataclass
+class SingleImapConfig:
+    enabled: bool
+    imap_server: str = ""
 
 
-
-class RedirectSettings(BaseModel):
+@dataclass
+class RedirectConfig:
     enabled: bool
     email: str = ""
     password: str = ""
@@ -36,28 +30,50 @@ class RedirectSettings(BaseModel):
     use_proxy: bool = False
 
 
-class Config(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+# Account management
+class AccountCredentials:
+    @staticmethod
+    def generate_password() -> str:
+        chars = string.ascii_letters + string.digits
+        return ''.join(secrets.choice(chars) for _ in range(random.randint(10, 14)))
 
-    class DelayBeforeStart(BaseModel):
-        min: int
-        max: int
 
-    accounts_to_register: list[Account] = []
-    accounts_to_farm: list[Account] = []
-    accounts_to_reverify: list[Account] = []
+class Account(BaseConfig):
+    email: str
+    password: str = Field(default_factory=AccountCredentials.generate_password)
+    appid: str = ""
+    auth_token: str = ""
+    imap_server: str = "imap.gmail.com"
+    proxy: Proxy
 
-    referral_codes: list[str] = []
+    async def init_values(self):
+        self.appid = await Accounts.get_app_id(self.email) or ""
+        self.auth_token = await Accounts.get_auth_token(self.email) or ""
+
+
+@dataclass
+class DelayConfig:
+    min: int
+    max: int
+
+
+# Main configuration
+class Config(BaseConfig):
+    accounts_to_register: list[Account] = Field(default_factory=list)
+    accounts_to_farm: list[Account] = Field(default_factory=list)
+    accounts_to_reverify: list[Account] = Field(default_factory=list)
+
+    referral_codes: list[str] = Field(default_factory=list)
     two_captcha_api_key: str = ""
     anti_captcha_api_key: str = ""
-    delay_before_start: DelayBeforeStart
+    delay_before_start: DelayConfig
 
     threads: PositiveInt
-    use_proxy_for_imap: bool
-    imap_settings: dict[str, str]
-
     keepalive_interval: PositiveInt
     module: str = ""
     captcha_module: Literal["2captcha", "anticaptcha"] = ""
 
-    redirect_settings: RedirectSettings
+    use_proxy_for_imap: bool
+    use_single_imap: SingleImapConfig
+    imap_settings: dict[str, str]
+    redirect_settings: RedirectConfig

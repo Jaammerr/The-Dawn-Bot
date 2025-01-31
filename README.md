@@ -1,4 +1,4 @@
-# 🌅 Dawn Extension Bot [v1.7]
+# 🌅 Dawn Extension Bot [v1.8]
 
 <div align="center">
   <img src="./console/images/console.png" alt="Dawn Extension Bot Console" width="600"/>
@@ -75,71 +75,124 @@
 ### 📁 settings.yaml
 
 ```yaml
-# Core Configuration
-threads: 30                    # Concurrent operation threads (min: 1)
-keepalive_interval: 120        # Keepalive signal interval (seconds)
-referral_codes:               # Multiple referral code support
-  - ""                        # Add your codes here
+# ═══════════════════════════════════════════════════════════════════════════
+#                     APPLICATION CONFIGURATION
+# ═══════════════════════════════════════════════════════════════════════════
 
-# Mail Redirect Settings
+# Master configuration file for the application's core services and functionality.
+# Includes settings for multi-threading, email handling, and security features.
+
+# ┏━━━━━━━━━━━━━━━━━━━━━┓
+# ┃     CORE SETTINGS    ┃
+# ┗━━━━━━━━━━━━━━━━━━━━━┛
+# Foundation settings that determine the application's basic operational parameters
+
+threads: 3                     # Controls parallel processing capacity
+                              # Higher values increase performance but consume more resources
+
+use_proxy_for_imap: false     # Enables secure proxy routing for IMAP connections
+                              # Recommended for enhanced privacy and security
+
+keepalive_interval: 300       # Connection monitoring frequency (seconds)
+                              # Ensures stable network connectivity
+
+use_single_imap: # use one imap server for all accounts
+    enabled: false
+    imap_server: "imap.gmail.com"
+
+# ┏━━━━━━━━━━━━━━━━━━━━━┓
+# ┃  EMAIL REDIRECTION   ┃
+# ┗━━━━━━━━━━━━━━━━━━━━━┛
+# Configuration for automated email forwarding and handling
+
 redirect_settings:
-  enabled: false              # Enable/disable mail redirection
-  email: "test@gmail.com"     # Redirect email address
-  password: "password"        # Email password
-  imap_server: "imap.gmail.com"
-  use_proxy: true            # Use proxy for email operations
+    enabled: false            # Main switch for email redirection system
+    email: ""                 # Target email for redirected messages
+    password: ""              # Access credentials (use secure storage!)
+    imap_server: ""           # Mail server address
+    use_proxy: false          # Optional proxy protection layer
 
-# Captcha Configuration
-captcha_module: 2captcha      # Select: '2captcha' or 'anticaptcha'
-two_captcha_api_key: ""       # 2captcha API key
-anti_captcha_api_key: ""      # Anticaptcha API key
+# ┏━━━━━━━━━━━━━━━━━━━━━┓
+# ┃   CAPTCHA SERVICES   ┃
+# ┗━━━━━━━━━━━━━━━━━━━━━┛
+# Integration settings for automated CAPTCHA resolution
 
-# Startup Settings
+captcha_module: 2captcha      # CAPTCHA service selection:
+                              # ► 2captcha: Primary solution
+                              # ► anticaptcha: Secondary option
+
+two_captcha_api_key: "18f4fb27711cac1838e6425e06779b49"       # Authentication key for 2captcha
+anti_captcha_api_key: "05f16e2bfe825feaf4af7ed52acfa979"      # Authentication key for anticaptcha
+
+# ┏━━━━━━━━━━━━━━━━━━━━━┓
+# ┃   STARTUP TIMING     ┃
+# ┗━━━━━━━━━━━━━━━━━━━━━┛
+# Application initialization delay configuration
+
 delay_before_start:
-  min: 2                      # Minimum startup delay (seconds)
-  max: 3                      # Maximum startup delay (seconds)
+    min: 2                    # Minimum delay duration (seconds)
+    max: 3                    # Maximum delay duration (seconds)
+                              # System will randomly select a value in this range
 
-# Email Provider Settings
+# ┏━━━━━━━━━━━━━━━━━━━━━┓
+# ┃ MAIL SERVER REGISTRY ┃
+# ┗━━━━━━━━━━━━━━━━━━━━━┛
+# Comprehensive IMAP server mappings for supported email providers
+
 imap_settings:
-  # Global Providers
-  gmail.com: imap.gmail.com
-  yahoo.com: imap.mail.yahoo.com
-  outlook.com: imap-mail.outlook.com
-  hotmail.com: imap-mail.outlook.com
-  icloud.com: imap.mail.me.com
-  
-  # Regional Providers
-  mail.ru: imap.mail.ru
-  rambler.ru: imap.rambler.ru
-  gmx.com: imap.gmx.com
-  onet.pl: imap.poczta.onet.pl
+    # ▼ Global Services
+    gmail.com: imap.gmail.com           # Google Mail (SSL required)
+    yahoo.com: imap.mail.yahoo.com      # Yahoo Mail (SSL required)
+    icloud.com: imap.mail.me.com        # Apple iCloud (2FA might be needed)
+
+    # ▼ Russian Services
+    mail.ru: imap.mail.ru               # Mail.ru service
+
+    # ▼ European Providers
+    gmx.com: imap.gmx.com               # GMX International
+    gmx.net: imap.gmx.net               # GMX Germany - Primary
+    gmx.de: imap.gmx.net                # GMX Germany - Secondary
+
+    # ▼ Polish Services
+    onet.pl: imap.poczta.onet.pl        # Onet Mail - Primary
+    onet.com.pl: imap.poczta.onet.pl    # Onet Mail - Secondary
+    op.pl: imap.poczta.onet.pl          # Onet Mail - Legacy
+    onet.eu: imap.poczta.onet.pl        # Onet Mail - European
+    gazeta.pl: imap.gazeta.pl           # Gazeta Mail Service
 ```
 
 ### 📁 Input Files Structure
 
-#### accounts/register.txt
+#### data/register.txt
 ```
 email:password
 email:password
 ```
 
-#### accounts/farm.txt
+#### data/farm.txt
 ```
 email:password
 email:password
 ```
 
-#### accounts/reverify.txt
+#### data/reverify.txt
 ```
 email:password
 email:password
 ```
 
-#### proxies/proxies.txt
+#### data/proxies.txt
 ```
 http://user:pass@ip:port
 http://ip:port:user:pass
 socks5://user:pass@ip:port
+```
+
+#### data/referral_codes.txt
+```
+hegbhf
+hegbhf
+hegbhf
 ```
 
 ## 🚀 Usage
@@ -153,7 +206,7 @@ socks5://user:pass@ip:port
 ## ⚠️ Important Notes
 
 - 🕒 Recommended keepalive interval: 120 seconds
-- 📧 Gmail users: Use App-Specific Passwords
+- 📧 Gmail/Icloud users: Use App-Specific Passwords
 - 🔄 Unverified accounts can be reverified using the register module
 - 💾 Authorization tokens are stored in local database
 - 🤖 External captcha services required (2captcha/anticaptcha)
@@ -176,9 +229,3 @@ socks5://user:pass@ip:port
 - Validate proxy format
 - Check proxy functionality
 - Ensure proxy authentication is correct
-
-## 📞 Support
-
-Join our Telegram community for support:
-- 📢 Channel: [JamBitPY](https://t.me/JamBitPY)
-- 💬 Chat: [JamBitChat](https://t.me/JamBitChat)

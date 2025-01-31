@@ -2,14 +2,15 @@ import os
 import ssl
 import re
 import asyncio
-from typing import Optional, Dict, Literal
+from typing import Optional, Dict
 from datetime import datetime, timezone
 from loguru import logger
 from imap_tools import MailBox, AND, MailboxLoginError
 from imaplib import IMAP4, IMAP4_SSL
 from better_proxy import Proxy
 from python_socks.sync import Proxy as SyncProxy
-from models import OperationResult
+
+from models import OperationResult, Account
 
 os.environ['SSLKEYLOGFILE'] = ''
 

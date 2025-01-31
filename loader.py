@@ -1,7 +1,7 @@
 import asyncio
 
 from core.solvers import *
-from utils import load_config, FileOperations, HeadersManager
+from utils import load_config, FileOperations
 
 config = load_config()
 captcha_solver = (
@@ -11,5 +11,4 @@ captcha_solver = (
 )
 
 file_operations = FileOperations()
-headers_manager = HeadersManager()
 semaphore = asyncio.Semaphore(config.threads)

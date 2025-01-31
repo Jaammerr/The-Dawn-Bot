@@ -1,82 +1,84 @@
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#                           Application Configuration
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ═══════════════════════════════════════════════════════════════════════════
+#                     APPLICATION CONFIGURATION
+# ═══════════════════════════════════════════════════════════════════════════
+
 # Master configuration file for the application's core services and functionality.
 # Includes settings for multi-threading, email handling, and security features.
 
-# ┌────────────────────────┐
-# │     Core Settings      │
-# └────────────────────────┘
+# ┏━━━━━━━━━━━━━━━━━━━━━┓
+# ┃     CORE SETTINGS    ┃
+# ┗━━━━━━━━━━━━━━━━━━━━━┛
 # Foundation settings that determine the application's basic operational parameters
 
-threads: 3                    # Controls parallel processing capacity
-                             # Higher values increase performance but consume more resources
+threads: 100                     # Controls parallel processing capacity
+                              # Higher values increase performance but consume more resources
 
-use_proxy_for_imap: false    # Enables secure proxy routing for IMAP connections
-                             # Recommended for enhanced privacy and security
+use_proxy_for_imap: false     # Enables secure proxy routing for IMAP connections
+                              # Recommended for enhanced privacy and security
 
-keepalive_interval: 300      # Connection monitoring frequency (seconds)
-                             # Ensures stable network connectivity
+keepalive_interval: 300       # Connection monitoring frequency (seconds)
+                              # Ensures stable network connectivity
 
-referral_codes:              # Marketing tracking codes
-  - ""                       # Add multiple entries for different campaigns
+use_single_imap: # use one imap server for all accounts
+    enabled: false
+    imap_server: "imap.gmail.com"
 
-# ┌────────────────────────┐
-# │  Email Redirection     │
-# └────────────────────────┘
+# ┏━━━━━━━━━━━━━━━━━━━━━┓
+# ┃  EMAIL REDIRECTION   ┃
+# ┗━━━━━━━━━━━━━━━━━━━━━┛
 # Configuration for automated email forwarding and handling
 
 redirect_settings:
-  enabled: false             # Main switch for email redirection system
-  email: ""                  # Target email for redirected messages
-  password: ""               # Access credentials (use secure storage!)
-  imap_server: ""  # Mail server address
-  use_proxy: false           # Optional proxy protection layer
+    enabled: false            # Main switch for email redirection system
+    email: ""                 # Target email for redirected messages
+    password: ""              # Access credentials (use secure storage!)
+    imap_server: ""           # Mail server address
+    use_proxy: false          # Optional proxy protection layer
 
-# ┌────────────────────────┐
-# │   CAPTCHA Services     │
-# └────────────────────────┘
+# ┏━━━━━━━━━━━━━━━━━━━━━┓
+# ┃   CAPTCHA SERVICES   ┃
+# ┗━━━━━━━━━━━━━━━━━━━━━┛
 # Integration settings for automated CAPTCHA resolution
 
-captcha_module: 2captcha     # CAPTCHA service selection:
-                             # ▸ 2captcha: Primary solution
-                             # ▸ anticaptcha: Secondary option
+captcha_module: 2captcha      # CAPTCHA service selection:
+                              # ► 2captcha: Primary solution
+                              # ► anticaptcha: Secondary option
 
-two_captcha_api_key: ""      # Authentication key for 2captcha
-anti_captcha_api_key: ""     # Authentication key for anticaptcha
+two_captcha_api_key: "18f4fb27711cac1838e6425e06779b49"       # Authentication key for 2captcha
+anti_captcha_api_key: "05f16e2bfe825feaf4af7ed52acfa979"      # Authentication key for anticaptcha
 
-# ┌────────────────────────┐
-# │    Startup Timing      │
-# └────────────────────────┘
+# ┏━━━━━━━━━━━━━━━━━━━━━┓
+# ┃   STARTUP TIMING     ┃
+# ┗━━━━━━━━━━━━━━━━━━━━━┛
 # Application initialization delay configuration
 
 delay_before_start:
-  min: 2                     # Minimum delay duration (seconds)
-  max: 3                     # Maximum delay duration (seconds)
-                             # System will randomly select a value in this range
+    min: 2                    # Minimum delay duration (seconds)
+    max: 3                    # Maximum delay duration (seconds)
+                              # System will randomly select a value in this range
 
-# ┌────────────────────────┐
-# │ Mail Server Directory  │
-# └────────────────────────┘
+# ┏━━━━━━━━━━━━━━━━━━━━━┓
+# ┃ MAIL SERVER REGISTRY ┃
+# ┗━━━━━━━━━━━━━━━━━━━━━┛
 # Comprehensive IMAP server mappings for supported email providers
 
 imap_settings:
-  # Global Services
-  gmail.com: imap.gmail.com          # Google Mail (SSL required)
-  yahoo.com: imap.mail.yahoo.com     # Yahoo Mail (SSL required)
-  icloud.com: imap.mail.me.com       # Apple iCloud (2FA might be needed)
+    # ▼ Global Services
+    gmail.com: imap.gmail.com           # Google Mail (SSL required)
+    yahoo.com: imap.mail.yahoo.com      # Yahoo Mail (SSL required)
+    icloud.com: imap.mail.me.com        # Apple iCloud (2FA might be needed)
 
-  # Russian Services
-  mail.ru: imap.mail.ru              # Mail.ru service
+    # ▼ Russian Services
+    mail.ru: imap.mail.ru               # Mail.ru service
 
-  # European Providers
-  gmx.com: imap.gmx.com              # GMX International
-  gmx.net: imap.gmx.net              # GMX Germany - Primary
-  gmx.de: imap.gmx.net               # GMX Germany - Secondary
+    # ▼ European Providers
+    gmx.com: imap.gmx.com               # GMX International
+    gmx.net: imap.gmx.net               # GMX Germany - Primary
+    gmx.de: imap.gmx.net                # GMX Germany - Secondary
 
-  # Polish Services
-  onet.pl: imap.poczta.onet.pl       # Onet Mail - Primary
-  onet.com.pl: imap.poczta.onet.pl   # Onet Mail - Secondary
-  op.pl: imap.poczta.onet.pl         # Onet Mail - Legacy
-  onet.eu: imap.poczta.onet.pl       # Onet Mail - European
-  gazeta.pl: imap.gazeta.pl          # Gazeta Mail Service
+    # ▼ Polish Services
+    onet.pl: imap.poczta.onet.pl        # Onet Mail - Primary
+    onet.com.pl: imap.poczta.onet.pl    # Onet Mail - Secondary
+    op.pl: imap.poczta.onet.pl          # Onet Mail - Legacy
+    onet.eu: imap.poczta.onet.pl        # Onet Mail - European
+    gazeta.pl: imap.gazeta.pl           # Gazeta Mail Service

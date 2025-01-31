@@ -3,6 +3,7 @@ from enum import Enum
 
 class APIErrorType(Enum):
     INCORRECT_CAPTCHA = "Incorrect answer. Try again!"
+    INVALID_CAPTCHA_TOKEN = "Invalid captcha"
     UNVERIFIED_EMAIL = "Email not verified , Please check spam folder incase you did not get email"
     EMAIL_EXISTS = "email already exists"
     BANNED = "Something went wrong #BRL4"

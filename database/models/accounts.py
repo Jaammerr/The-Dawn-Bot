@@ -46,6 +46,14 @@ class Accounts(Model):
         return account.app_id
 
     @classmethod
+    async def get_auth_token(cls, email: str) -> str | None:
+        account = await cls.get_account(email=email)
+        if account is None:
+            return None
+
+        return account.auth_token
+
+    @classmethod
     async def delete_account(cls, email: str):
         account = await cls.get_account(email=email)
         if account is None:

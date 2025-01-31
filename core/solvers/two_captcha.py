@@ -18,8 +18,8 @@ class TwoCaptchaSolver:
                 "softId": 4706,
                 "task": {
                     "type": "TurnstileTaskProxyless",
-                    "websiteURL": "https://www.aeropres.in/",
-                    "websiteKey": "0x4AAAAAAA0DVmzm9PiLTNuf",
+                    "websiteURL": "https://dashboard.dawninternet.com/",
+                    "websiteKey": "0x4AAAAAAA48wVDquA-98fyV",
                 },
             }
 
