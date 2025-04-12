@@ -153,7 +153,6 @@ class Bot:
         duration = timedelta(seconds=config.keepalive_interval)
         return datetime.now(pytz.UTC) + duration
 
-
     async def _validate_email(self, proxy: str = None) -> dict:
         proxy = Proxy.from_str(proxy) if proxy else None
 
@@ -372,6 +371,7 @@ class Bot:
 
         for attempt in range(max_attempts):
             db_account_value = None
+            api = None
 
             try:
                 db_account_value = await Accounts.get_account(email=self.account_data.email)
@@ -429,12 +429,17 @@ class Bot:
                 if result is not None:
                     return result
 
+            finally:
+                if api:
+                    await api.close_session()
+
     async def process_verify(self) -> OperationResult:
         max_attempts = config.attempts_and_delay_settings.max_attempts_to_verify_email
         link_sent = False
 
         for attempt in range(max_attempts):
             db_account_value = None
+            api = None
 
             try:
                 db_account_value = await Accounts.get_account(email=self.account_data.email)
@@ -493,11 +498,16 @@ class Bot:
                 if result is not None:
                     return result
 
+            finally:
+                if api:
+                    await api.close_session()
+
     async def process_login(self) -> OperationResult:
         max_attempts = config.attempts_and_delay_settings.max_login_attempts
 
         for attempt in range(max_attempts):
             db_account_value = None
+            api = None
 
             try:
                 db_account_value = await Accounts.get_account(email=self.account_data.email)
@@ -531,12 +541,17 @@ class Bot:
                 if result is not None:
                     return result
 
+            finally:
+                if api:
+                    await api.close_session()
+
 
     async def process_complete_tasks(self) -> OperationResult:
         max_attempts = config.attempts_and_delay_settings.max_tasks_attempts
 
         for attempt in range(max_attempts):
             db_account_value = None
+            api = None
 
             try:
                 db_account_value = await Accounts.get_account(email=self.account_data.email)
@@ -575,12 +590,17 @@ class Bot:
                 if result is not None:
                     return result
 
+            finally:
+                if api:
+                    await api.close_session()
+
 
     async def process_export_stats(self) -> StatisticData:
         max_attempts = config.attempts_and_delay_settings.max_stats_attempts
 
         for attempt in range(max_attempts):
             db_account_value = None
+            api = None
 
             try:
                 db_account_value = await Accounts.get_account(email=self.account_data.email)
@@ -611,6 +631,10 @@ class Bot:
                 if result is not None:
                     return result
 
+            finally:
+                if api:
+                    await api.close_session()
+
 
     async def process_farm(self):
         max_attempts = config.attempts_and_delay_settings.max_attempts_to_send_keepalive
@@ -618,6 +642,7 @@ class Bot:
         for attempt in range(max_attempts):
             db_account_value = None
             sleep_duration = None
+            api = None
 
             try:
                 db_account_value = await Accounts.get_account(email=self.account_data.email)
@@ -656,4 +681,7 @@ class Bot:
                     duration = timedelta(seconds=config.application_settings.keepalive_interval)
                     utc_duration = datetime.now(pytz.UTC) + duration
                     await db_account_value.set_sleep_until(utc_duration)
+
+                if api:
+                    await api.close_session()
 

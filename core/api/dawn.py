@@ -57,6 +57,12 @@ class APIClient:
                             f"API returned an error: {response_data}", response_data
                         )
 
+    async def close_session(self) -> None:
+        try:
+            await self.session.close()
+        except:
+            pass
+
     async def send_request(
         self,
         request_type: Literal["POST", "GET", "OPTIONS"] = "POST",
