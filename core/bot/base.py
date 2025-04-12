@@ -501,7 +501,7 @@ class Bot:
 
             try:
                 db_account_value = await Accounts.get_account(email=self.account_data.email)
-                if config.application_settings.skip_logged_accounts and (db_account_value, db_account_value.auth_token):
+                if config.application_settings.skip_logged_accounts and db_account_value and db_account_value.auth_token:
                     logger.warning(f"Account: {self.account_data.email} | Account already logged in, skipped")
                     return operation_failed(self.account_data.email, self.account_data.password)
 
@@ -527,6 +527,7 @@ class Bot:
                     return result
 
             except Exception as error:
+                logger.exception(error)
                 result = await self.handle_generic_exception(error, attempt, max_attempts, "login", db_account_value)
                 if result is not None:
                     return result

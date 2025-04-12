@@ -1,4 +1,4 @@
-# 🌅 Dawn Extension Bot [v2.0.0]
+# 🌅 Dawn Extension Bot [v2.0]
 
 <div align="center">
   <img src="./console/images/console.png" alt="Dawn Extension Bot Console" width="600"/>
