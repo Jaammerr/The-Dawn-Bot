@@ -527,7 +527,6 @@ class Bot:
                     return result
 
             except Exception as error:
-                logger.exception(error)
                 result = await self.handle_generic_exception(error, attempt, max_attempts, "login", db_account_value)
                 if result is not None:
                     return result
