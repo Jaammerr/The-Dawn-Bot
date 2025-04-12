@@ -1,124 +1,101 @@
 import asyncio
 import random
 
-from typing import List, Callable, Optional, Any, Set
+from typing import List, Any, Set, Optional, Callable
 from loguru import logger
 
-from loader import config, semaphore, file_operations
-from core.bot import Bot
+from core.modules.executor import ModuleExecutor
+from loader import config, file_operations, semaphore, proxy_manager
 from models import Account
 from utils import Progress
 from console import Console
-from database import initialize_database
+from database import initialize_database, Accounts
 
 
 class ApplicationManager:
     def __init__(self):
         self.accounts_with_initial_delay: Set[str] = set()
         self.module_map = {
-            "register": (config.accounts_to_register, self._process_registration),
-            "farm": (config.accounts_to_farm, self._process_farm),
-            "complete_tasks": (config.accounts_to_farm, self._process_complete_tasks),
-            "export_stats": (config.accounts_to_farm, self._process_export_stats),
-            "re_verify_accounts": (config.accounts_to_reverify, self._process_reverify),
+            "registration": (config.accounts_to_register, self._execute_module_for_accounts),
+            "login": (config.accounts_to_login, self._execute_module_for_accounts),
+            "farm": (config.accounts_to_farm, self._farm_continuously),
+            "complete_tasks": (config.accounts_to_complete_tasks, self._execute_module_for_accounts),
+            "export_stats": (config.accounts_to_export_stats, self._execute_module_for_accounts),
+            "verify": (config.accounts_to_verify, self._execute_module_for_accounts),
         }
 
-    async def initialize(self) -> None:
+    @staticmethod
+    async def initialize() -> None:
+        logger.info(f"Initializing database..")
         await initialize_database()
+        logger.success(f"Database initialized")
         await file_operations.setup_files()
-        self.reset_initial_delays()
 
-    def reset_initial_delays(self) -> None:
-        self.accounts_with_initial_delay.clear()
-
-    async def _safe_execute_module(
-            self,
-            account: Account,
-            process_func: Callable,
-            progress: Optional[Progress] = None
-    ) -> Any:
-        try:
-            async with semaphore:
-                bot = Bot(account)
-                await account.init_values()
-
-                try:
-                    if config.delay_before_start.min > 0:
-                        should_delay = (
-                                process_func != self._process_farm or
-                                account.email not in self.accounts_with_initial_delay
-                        )
-
-                        if should_delay:
-                            random_delay = random.randint(
-                                config.delay_before_start.min,
-                                config.delay_before_start.max
-                            )
-                            logger.info(f"Account: {account.email} | Sleep for {random_delay} sec")
-                            await asyncio.sleep(random_delay)
-
-                            if process_func == self._process_farm:
-                                self.accounts_with_initial_delay.add(account.email)
-
-                    result = await process_func(bot)
-
-                    if progress is not None and process_func != self._process_farm:
-                        progress.increment()
-                        logger.debug(f"Progress: {progress.processed}/{progress.total}")
-
-                    return result
-                finally:
-                    await bot.close_session()
-
-        except Exception as e:
-            logger.exception(e)
-            logger.error(f"Error processing account {account.email}: {str(e)}")
-            return {"success": False, "error": str(e)}
 
     async def _execute_module_for_accounts(
-            self,
-            accounts: List[Account],
-            process_func: Callable
+        self, accounts: List[Account], module_name: str
     ) -> tuple[Any]:
         progress = Progress(len(accounts))
-        if process_func != self._process_farm:
+        if module_name != "farm":
             logger.debug(f"Progress: 0/{progress.total}")
 
-        tasks = [
-            self._safe_execute_module(account, process_func, progress)
-            for account in accounts
-        ]
+        if module_name == "export_stats":
+            await file_operations.setup_stats()
+
+        tasks = []
+        for account in accounts:
+            executor = ModuleExecutor(account)
+            module_func = getattr(executor, f"_process_{module_name}")
+            tasks.append(self._safe_execute_module(account, module_func, progress))
+
         return await asyncio.gather(*tasks)
 
     @staticmethod
-    async def _process_registration(bot: Bot) -> None:
-        operation_result = await bot.process_registration()
-        await file_operations.export_result(operation_result, "register")
+    async def _safe_execute_module(
+            account: Account, module_func: Callable, progress: Progress
+    ) -> Optional[dict]:
+        try:
+            async with semaphore:
+                if (
+                    config.attempts_and_delay_settings.delay_before_start.min > 0
+                    and config.attempts_and_delay_settings.delay_before_start.max > 0
+                ):
+                    random_delay = random.randint(
+                        config.attempts_and_delay_settings.delay_before_start.min, config.attempts_and_delay_settings.delay_before_start.max
+                    )
+                    logger.info(
+                        f"Account: {account.email} | Sleep for {random_delay} sec before starting the process"
+                    )
+                    await asyncio.sleep(random_delay)
 
-    @staticmethod
-    async def _process_reverify(bot: Bot) -> None:
-        operation_result = await bot.process_reverify_email()
-        await file_operations.export_result(operation_result, "re-verify")
+                result = await module_func()
+                if module_func.__name__ != "_process_farm":
+                    progress.increment()
+                    logger.debug(f"Progress: {progress.processed}/{progress.total}")
 
-    @staticmethod
-    async def _process_farm(bot: Bot) -> None:
-        await bot.process_farming()
+                return result
 
-    @staticmethod
-    async def _process_export_stats(bot: Bot) -> None:
-        data = await bot.process_get_user_info()
-        await file_operations.export_stats(data)
-
-    @staticmethod
-    async def _process_complete_tasks(bot: Bot) -> None:
-        operation_result = await bot.process_complete_tasks()
-        await file_operations.export_result(operation_result, "tasks")
+        except Exception as e:
+            logger.error(f"Error processing account {account.email}: {str(e)}")
+            return {"success": False, "error": str(e)}
 
     async def _farm_continuously(self, accounts: List[Account]) -> None:
         while True:
-            random.shuffle(accounts)
-            await self._execute_module_for_accounts(accounts, self._process_farm)
+            if config.application_settings.shuffle_accounts:
+                random.shuffle(accounts)
+
+            await self._execute_module_for_accounts(accounts, "farm")
             await asyncio.sleep(5)
+
+    @staticmethod
+    async def _clean_accounts_proxies() -> None:
+        logger.info("Cleaning all accounts proxies..")
+        try:
+            cleared_count = await Accounts().clear_all_accounts_proxies()
+            logger.success(f"Successfully cleared proxies for {cleared_count} accounts")
+
+        except Exception as e:
+            logger.error(f"Error while clearing accounts proxies: {str(e)}")
 
     async def run(self) -> None:
         await self.initialize()
@@ -126,10 +103,16 @@ class ApplicationManager:
         while True:
             Console().build()
 
+            if config.module == "clean_accounts_proxies":
+                await self._clean_accounts_proxies()
+                input("\nPress Enter to continue...")
+                continue
+
             if config.module not in self.module_map:
                 logger.error(f"Unknown module: {config.module}")
                 break
 
+            proxy_manager.load_proxy(config.proxies)
             accounts, process_func = self.module_map[config.module]
             random.shuffle(accounts)
 
@@ -141,5 +124,5 @@ class ApplicationManager:
             if config.module == "farm":
                 await self._farm_continuously(accounts)
             else:
-                await self._execute_module_for_accounts(accounts, process_func)
+                await self._execute_module_for_accounts(accounts, config.module)
                 input("\nPress Enter to continue...")

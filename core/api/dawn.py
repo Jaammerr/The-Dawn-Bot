@@ -6,12 +6,9 @@ import names
 from datetime import datetime, timezone
 from typing import Literal
 
-from better_proxy import Proxy
 from curl_cffi.requests import AsyncSession, Response
-
-from models import Account
-from utils.handlers import require_auth_token
-from .exceptions.base import APIError, SessionRateLimited, ServerError
+from utils.processing.handlers import require_auth_token
+from core.exceptions.base import APIError, SessionRateLimited, ServerError, ProxyForbidden
 from loader import config
 
 
@@ -21,20 +18,19 @@ class APIClient:
     EXTENSION_API_URL = "https://www.aeropres.in/chromeapi/dawn"
     DASHBOARD_API_URL = "https://ext-api.dawninternet.com/chromeapi/dawn"
 
-    def __init__(self, proxy: Proxy):
+    def __init__(self, proxy: str = None):
         self.proxy = proxy
-
         self.session = self._create_session()
-        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
     def _create_session(self) -> AsyncSession:
-        session = AsyncSession(impersonate="chrome124", verify=False)
+        session = AsyncSession(impersonate="chrome131", verify=False)
         session.timeout = 30
 
         if self.proxy:
             session.proxies = {
-                "http": self.proxy.as_url,
-                "https": self.proxy.as_url,
+                "http": self.proxy,
+                "https": self.proxy,
             }
 
         return session
@@ -72,7 +68,7 @@ class APIClient:
         headers: dict = None,
         cookies: dict = None,
         verify: bool = True,
-        max_retries: int = 3,
+        max_retries: int = 2,
         retry_delay: float = 3.0,
     ):
         url = url if url else f"{self.EXTENSION_API_URL}{method}" if api_type == "EXTENSION" else f"{self.DASHBOARD_API_URL}{method}"
@@ -102,7 +98,9 @@ class APIClient:
                     )
 
                 if verify:
-                    if response.status_code == 403:
+                    if response.status_code == 403 and "403 Forbidden" in response.text:
+                        raise ProxyForbidden(f"Proxy forbidden - {response.status_code}")
+                    elif response.status_code == 403:
                         raise SessionRateLimited("Session is rate limited or blocked by Cloudflare")
 
                     if response.status_code in (500, 502, 503, 504):
@@ -122,7 +120,7 @@ class APIClient:
                     raise error
                 await asyncio.sleep(retry_delay)
 
-            except (APIError, SessionRateLimited):
+            except (APIError, SessionRateLimited, ProxyForbidden):
                 raise
 
             except Exception as error:
@@ -136,38 +134,42 @@ class APIClient:
 
 
 class DawnExtensionAPI(APIClient):
-    def __init__(self, account: Account):
-        super().__init__(account.proxy)
-        self.account_data = account
+    def __init__(self, auth_token: str = None, proxy: str = None):
+        super().__init__(proxy)
+        self.auth_token = auth_token
 
-    async def get_puzzle_id(self) -> str:
+    async def get_puzzle_id(self, app_id: str) -> str:
         headers = {
-            'accept': '*/*',
-            'accept-language': 'en-US,en;q=0.9,ru;q=0.8',
-            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
             'user-agent': self.user_agent,
+            'accept': '*/*',
+            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'host': 'ext-api.dawninternet.com',
         }
 
         response = await self.send_request(
+            api_type="DASHBOARD",
             method="/v1/puzzle/get-puzzle",
             request_type="GET",
-            params={"appid": self.account_data.appid},
+            params={"appid": app_id},
             headers=headers,
         )
         return response["puzzle_id"]
 
-    async def get_puzzle_image(self, puzzle_id: str) -> str:
+    async def get_puzzle_image(self, puzzle_id: str, app_id: str) -> str:
         headers = {
-            'accept': '*/*',
-            'accept-language': 'en-US,en;q=0.9,ru;q=0.8',
-            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
             'user-agent': self.user_agent,
+            'accept': '*/*',
+            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'host': 'ext-api.dawninternet.com',
         }
 
         response = await self.send_request(
+            api_type="DASHBOARD",
             method="/v1/puzzle/get-puzzle-image",
             request_type="GET",
-            params={"puzzle_id": puzzle_id, "appid": self.account_data.appid},
+            params={"puzzle_id": puzzle_id, "appid": app_id},
             headers=headers,
         )
 
@@ -176,15 +178,15 @@ class DawnExtensionAPI(APIClient):
 
     async def get_app_id(self) -> str:
         headers = {
-            'accept': 'application/json, text/plain, */*',
-            'accept-language': 'en-US,en;q=0.9,ru;q=0.8',
-            'origin': 'https://dashboard.dawninternet.com',
-            'referer': 'https://dashboard.dawninternet.com/',
             'user-agent': self.user_agent,
+            'accept': '*/*',
+            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'host': 'ext-api.dawninternet.com',
         }
 
         params = {
-            'app_v': '1.1.7',
+            'app_v': '1.1.4',
         }
 
         response = await self.send_request(
@@ -197,20 +199,21 @@ class DawnExtensionAPI(APIClient):
 
         return response["data"]["appid"]
 
-    async def register(self, captcha_token: str) -> dict:
+    async def register(self, email: str, password: str, captcha_token: str, app_id: str) -> dict:
         headers = {
+            'user-agent': self.user_agent,
             'accept': 'application/json, text/plain, */*',
-            'accept-language': 'en-US,en;q=0.9,ru;q=0.8',
             'content-type': 'application/json',
             'origin': 'https://dashboard.dawninternet.com',
             'referer': 'https://dashboard.dawninternet.com/',
-            'user-agent': self.user_agent,
+            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'accept-encoding': 'gzip, deflate, br'
         }
 
         json_data = {
             'firstname': names.get_first_name(),
             'lastname': names.get_last_name(),
-            'email': self.account_data.email,
+            'email': email,
             'mobile': '',
             'country': random.choice([
                 'AL', 'AD', 'AT', 'BY', 'BE', 'BA', 'BG', 'HR', 'CZ', 'DK',
@@ -219,7 +222,7 @@ class DawnExtensionAPI(APIClient):
                 'PL', 'PT', 'RO', 'RU', 'SM', 'RS', 'SK', 'SI', 'ES', 'SE',
                 'CH', 'UA', 'GB', 'VA', 'UA'
             ]),
-            'password': self.account_data.password,
+            'password': password,
             'referralCode': random.choice(config.referral_codes) if config.referral_codes else "",
             'token': captcha_token,
             'isMarketing': False,
@@ -230,26 +233,27 @@ class DawnExtensionAPI(APIClient):
             api_type="DASHBOARD",
             method="/v2/dashboard/user/validate-register",
             json_data=json_data,
-            params={"appid": self.account_data.appid},
+            params={"appid": app_id},
             headers=headers,
         )
 
     @require_auth_token
-    async def keepalive(self) -> dict | str:
+    async def keepalive(self, email: str, app_id: str) -> dict | str:
         headers = {
-            'accept': '*/*',
-            'accept-language': 'en-US,en;q=0.9,ru;q=0.8',
-            'authorization': f'Berear {self.account_data.auth_token}',
-            'content-type': 'application/json',
-            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
             'user-agent': self.user_agent,
+            'content-type': 'application/json',
+            'authorization': f'Berear {self.auth_token}',
+            'accept': '*/*',
+            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'accept-encoding': 'gzip, deflate, br'
         }
 
         json_data = {
-            "username": self.account_data.email,
+            "username": email,
             "extensionid": "fpdkjdnhkakefebpekbdhillbhonfjjp",
             "numberoftabs": 0,
-            "_v": "1.1.3",
+            "_v": "1.1.4",
         }
 
         return await self.send_request(
@@ -257,36 +261,38 @@ class DawnExtensionAPI(APIClient):
             json_data=json_data,
             verify=False,
             headers=headers,
-            params={"appid": self.account_data.appid},
+            params={"appid": app_id},
         )
 
     @require_auth_token
-    async def user_info(self) -> dict:
+    async def user_info(self, app_id: str) -> dict:
         headers = {
-            'accept': '*/*',
-            'accept-language': 'en-US,en;q=0.9,ru;q=0.8',
-            'authorization': f'Berear {self.account_data.auth_token}',
-            'content-type': 'application/json',
-            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'authorization': f'Berear {self.auth_token}',
             'user-agent': self.user_agent,
+            'content-type': 'application/json',
+            'accept': '*/*',
+            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'accept-encoding': 'gzip, deflate, br'
         }
 
         response = await self.send_request(
             url="https://www.aeropres.in/api/atom/v1/userreferral/getpoint",
             request_type="GET",
             headers=headers,
-            params={"appid": self.account_data.appid},
+            params={"appid": app_id},
         )
 
         return response["data"]
 
     async def verify_registration(self, key: str, captcha_token: str) -> dict:
         headers = {
-            'accept': '*/*',
-            'accept-language': 'en-US,en;q=0.9,ru;q=0.8',
-            'content-type': 'application/json',
-            'origin': 'https://verify.dawninternet.com',
             'user-agent': self.user_agent,
+            'content-type': 'application/json',
+            'accept': '*/*',
+            'origin': 'https://verify.dawninternet.com',
+            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'accept-encoding': 'gzip, deflate, br'
         }
 
         return await self.send_request(
@@ -296,7 +302,7 @@ class DawnExtensionAPI(APIClient):
             params={"key": key},
         )
 
-    async def resend_verify_link(self, puzzle_id: str, answer: str) -> dict:
+    async def resend_verify_link(self, email: str, puzzle_id: str, answer: str, app_id: str) -> dict:
         headers = {
             'accept': '*/*',
             'accept-language': 'en-US,en;q=0.9,ru;q=0.8',
@@ -306,7 +312,7 @@ class DawnExtensionAPI(APIClient):
         }
 
         json_data = {
-            'username': self.account_data.email,
+            'username': email,
             'puzzle_id': puzzle_id,
             'ans': answer,
         }
@@ -314,22 +320,23 @@ class DawnExtensionAPI(APIClient):
         return await self.send_request(
             method="/v1/user/resendverifylink/v2",
             json_data=json_data,
-            params={"appid": self.account_data.appid},
+            params={"appid": app_id},
             headers=headers,
         )
 
     @require_auth_token
-    async def complete_tasks(self, tasks: list[str] = None, delay: int = 1) -> None:
+    async def complete_tasks(self, app_id: str, tasks: list[str] = None, delay: int = 1) -> None:
         if not tasks:
             tasks = ["telegramid", "discordid", "twitter_x_id"]
 
         headers = {
-            'accept': '*/*',
-            'accept-language': 'en-US,en;q=0.9,ru;q=0.8',
-            'authorization': f'Brearer {self.account_data.auth_token}',
-            'content-type': 'application/json',
-            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'authorization': f'Brearer {self.auth_token}',
             'user-agent': self.user_agent,
+            'content-type': 'application/json',
+            'accept': '*/*',
+            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'accept-encoding': 'gzip, deflate, br'
         }
 
         for task in tasks:
@@ -337,7 +344,7 @@ class DawnExtensionAPI(APIClient):
                 method="/v1/profile/update",
                 json_data={task: task},
                 headers=headers,
-                params={"appid": self.account_data.appid},
+                params={"appid": app_id},
             )
 
             await asyncio.sleep(delay)
@@ -353,13 +360,14 @@ class DawnExtensionAPI(APIClient):
         except APIError as error:
             return False, str(error)
 
-    async def login(self, puzzle_id: str, answer: str) -> str:
+    async def login(self, email: str, password: str, puzzle_id: str, answer: str, app_id: str) -> str:
         headers = {
-            'accept': '*/*',
-            'accept-language': 'en-US,en;q=0.9,ru;q=0.8',
-            'content-type': 'application/json',
-            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
             'user-agent': self.user_agent,
+            'content-type': 'application/json',
+            'accept': '*/*',
+            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'accept-encoding': 'gzip, deflate, br'
         }
 
         current_time = datetime.now(timezone.utc)
@@ -368,23 +376,23 @@ class DawnExtensionAPI(APIClient):
         )
 
         json_data = {
-            "username": self.account_data.email,
-            "password": self.account_data.password,
+            "username": email,
+            "password": password,
             "logindata": {
                 '_v': {
-                    'version': '1.1.3',
+                    'version': '1.1.4',
                 },
                 'datetime': formatted_datetime_str,
             },
             "puzzle_id": puzzle_id,
             "ans": answer,
-            "appid": self.account_data.appid,
+            "appid": app_id,
         }
 
         response = await self.send_request(
             method="/v1/user/login/v2",
             json_data=json_data,
-            params={"appid": self.account_data.appid},
+            params={"appid": app_id},
             headers=headers,
         )
 

@@ -1,24 +1,13 @@
-from dataclasses import dataclass
-from typing import Literal
-
 import secrets
 import string
 import random
 
-from better_proxy import Proxy
+from dataclasses import dataclass
 from pydantic import BaseModel, PositiveInt, ConfigDict, Field
-
-from database import Accounts
 
 
 class BaseConfig(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-
-
-@dataclass
-class SingleImapConfig:
-    enabled: bool
-    imap_server: str = ""
 
 
 @dataclass
@@ -30,50 +19,85 @@ class RedirectConfig:
     use_proxy: bool = False
 
 
-# Account management
-class AccountCredentials:
-    @staticmethod
-    def generate_password() -> str:
-        chars = string.ascii_letters + string.digits
-        return ''.join(secrets.choice(chars) for _ in range(random.randint(10, 14)))
-
-
 class Account(BaseConfig):
+    class AccountCredentials:
+        @staticmethod
+        def generate_password() -> str:
+            chars = string.ascii_letters + string.digits
+            return ''.join(secrets.choice(chars) for _ in range(random.randint(10, 14)))
+
     email: str
     password: str = Field(default_factory=AccountCredentials.generate_password)
-    appid: str = ""
-    auth_token: str = ""
-    imap_server: str = "imap.gmail.com"
-    proxy: Proxy
-
-    async def init_values(self):
-        self.appid = await Accounts.get_app_id(self.email) or ""
-        self.auth_token = await Accounts.get_auth_token(self.email) or ""
+    imap_server: str = ""
 
 
 @dataclass
-class DelayConfig:
+class CaptchaSettings:
+    two_captcha_api_key: str = ""
+    anti_captcha_api_key: str = ""
+
+    max_captcha_solving_time: PositiveInt = 60
+    captcha_service: str = ""
+
+
+@dataclass
+class Range:
     min: int
     max: int
 
 
-# Main configuration
+@dataclass
+class AttemptsAndDelaySettings:
+    delay_before_start: Range
+    error_delay: PositiveInt
+
+    max_register_attempts: PositiveInt
+    max_login_attempts: PositiveInt
+    max_stats_attempts: PositiveInt
+    max_tasks_attempts: PositiveInt
+    max_attempts_to_receive_app_id: PositiveInt
+    max_attempts_to_verify_email: PositiveInt
+    max_attempts_to_send_keepalive: PositiveInt
+
+
+@dataclass
+class IMAPSettings:
+
+    @dataclass
+    class UseSingleImap:
+        enable: bool
+        imap_server: str = ""
+
+    use_single_imap: UseSingleImap
+    use_proxy_for_imap: bool
+
+    servers: dict[str, str]
+
+
+@dataclass
+class ApplicationSettings:
+    threads: PositiveInt
+    keepalive_interval: PositiveInt
+    database_url: str
+    skip_logged_accounts: bool
+    shuffle_accounts: bool
+
+
 class Config(BaseConfig):
     accounts_to_register: list[Account] = Field(default_factory=list)
     accounts_to_farm: list[Account] = Field(default_factory=list)
-    accounts_to_reverify: list[Account] = Field(default_factory=list)
+    accounts_to_login: list[Account] = Field(default_factory=list)
+    accounts_to_export_stats: list[Account] = Field(default_factory=list)
+    accounts_to_complete_tasks: list[Account] = Field(default_factory=list)
+    accounts_to_verify: list[Account] = Field(default_factory=list)
 
     referral_codes: list[str] = Field(default_factory=list)
-    two_captcha_api_key: str = ""
-    anti_captcha_api_key: str = ""
-    delay_before_start: DelayConfig
+    proxies: list[str] = Field(default_factory=list)
 
-    threads: PositiveInt
-    keepalive_interval: PositiveInt
-    module: str = ""
-    captcha_module: Literal["2captcha", "anticaptcha"] = ""
-
-    use_proxy_for_imap: bool
-    use_single_imap: SingleImapConfig
-    imap_settings: dict[str, str]
+    application_settings: ApplicationSettings
+    attempts_and_delay_settings: AttemptsAndDelaySettings
+    captcha_settings: CaptchaSettings
     redirect_settings: RedirectConfig
+    imap_settings: IMAPSettings
+
+    module: str = ""

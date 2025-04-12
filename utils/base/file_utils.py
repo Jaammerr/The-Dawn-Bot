@@ -1,4 +1,5 @@
 import asyncio
+import time
 import aiofiles
 
 from pathlib import Path
@@ -29,34 +30,55 @@ class FileOperations:
                 "unverified": self.base_path / "accounts" / "unverified_accounts.txt",
                 "banned": self.base_path / "accounts" / "banned_accounts.txt",
                 "unregistered": self.base_path / "accounts" / "unregistered_accounts.txt",
+                "unlogged": self.base_path / "accounts" / "unlogged_accounts.txt",
             },
-            "re-verify": {
-                "success": self.base_path / "re_verify" / "reverify_success.txt",
-                "failed": self.base_path / "re_verify" / "reverify_failed.txt",
-            }
+            "verify": {
+                "success": self.base_path / "re_verify" / "verify_success.txt",
+                "failed": self.base_path / "re_verify" / "verify_failed.txt",
+            },
+            "login": {
+                "success": self.base_path / "login" / "login_success.txt",
+                "failed": self.base_path / "login" / "login_failed.txt",
+            },
         }
 
     async def setup_files(self):
         self.base_path.mkdir(exist_ok=True)
+        for module_name, module_paths in self.module_paths.items():
+            for path_key, path in module_paths.items():
+                path.parent.mkdir(parents=True, exist_ok=True)
 
-        for module, paths in self.module_paths.items():
-            for path_type, file_path in paths.items():
-                file_path.parent.mkdir(parents=True, exist_ok=True)
-                file_path.touch(exist_ok=True)
+                if module_name == "stats":
+                    continue
+                else:
+                    path.touch(exist_ok=True)
 
-        stats_path = self.module_paths["stats"]["base"]
-        if stats_path.stat().st_size == 0:
-            async with aiofiles.open(stats_path, "w", newline='') as f:
-                writer = AsyncWriter(f)
-                await writer.writerow([
-                    "Email",
-                    "Referral Code",
-                    "Points",
-                    "Referral Points",
-                    "Total Points",
-                    "Registration Date",
-                    "Completed Tasks",
-                ])
+    async def setup_stats(self):
+        self.base_path.mkdir(exist_ok=True)
+
+        for module_name, module_paths in self.module_paths.items():
+            if module_name == "stats":
+                timestamp = int(time.time())
+
+                for path_key, path in module_paths.items():
+                    path.parent.mkdir(parents=True, exist_ok=True)
+
+                    if path_key == "base":
+                        new_path = path.parent / f"accounts_stats_{timestamp}.csv"
+                        self.module_paths[module_name][path_key] = new_path
+                        path = new_path
+
+                        async with aiofiles.open(path, "w") as f:
+                            writer = AsyncWriter(f)
+                            await writer.writerow([
+                                "Email",
+                                "Referral Code",
+                                "Points",
+                                "Referral Points",
+                                "Total Points",
+                                "Registration Date",
+                                "Completed Tasks",
+                            ])
 
     async def export_result(self, result: OperationResult, module: ModuleType):
         if module not in self.module_paths:
@@ -75,40 +97,23 @@ class FileOperations:
                 logger.error(f"Account: {result['identifier']} | Error writing to file: {e}")
 
 
-    async def export_unverified_email(self, email: str, password: str):
-        file_path = self.module_paths["accounts"]["unverified"]
+
+    async def export_invalid_account(self, email: str, password: str | None, reason: str):
+        if reason not in self.module_paths["accounts"]:
+            raise ValueError(f"Unknown reason: {reason}")
+
+        file_path = self.module_paths["accounts"][reason]
         async with self.lock:
             try:
                 async with aiofiles.open(file_path, "a") as file:
-                    await file.write(f"{email}:{password}\n")
+                    if password:
+                        await file.write(f"{email}:{password}\n")
+                    else:
+                        await file.write(f"{email}\n")
             except IOError as e:
                 logger.error(f"Account: {email} | Error writing to file (IOError): {e}")
             except Exception as e:
                 logger.error(f"Account: {email} | Error writing to file: {e}")
-
-    async def export_banned_email(self, email: str, password: str):
-        file_path = self.module_paths["accounts"]["banned"]
-        async with self.lock:
-            try:
-                async with aiofiles.open(file_path, "a") as file:
-                    await file.write(f"{email}:{password}\n")
-            except IOError as e:
-                    logger.error(f"Account: {email} | Error writing to file (IOError): {e}")
-            except Exception as e:
-                logger.error(f"Account: {email} | Error writing to file: {e}")
-
-
-    async def export_unregistered_email(self, email: str, password: str):
-        file_path = self.module_paths["accounts"]["unregistered"]
-        async with self.lock:
-            try:
-                async with aiofiles.open(file_path, "a") as file:
-                    await file.write(f"{email}:{password}\n")
-            except IOError as e:
-                logger.error(f"Account: {email} | Error writing to file (IOError): {e}")
-            except Exception as e:
-                logger.error(f"Account: {email} | Error writing to file: {e}")
-
 
     async def export_stats(self, data: StatisticData):
         file_path = self.module_paths["stats"]["base"]

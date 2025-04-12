@@ -124,11 +124,12 @@ class EmailValidator:
                 "identifier": self.email,
                 "data": "Invalid credentials",
             }
+
         except Exception as error:
             return {
                 "status": False,
                 "identifier": self.email,
-                "data": f"Validation failed: {str(error)}",
+                "data": f"validation failed: {str(error)}",
             }
 
 

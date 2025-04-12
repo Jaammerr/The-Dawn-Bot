@@ -3,13 +3,14 @@ from typing import Any, Tuple
 import httpx
 
 
+
 class TwoCaptchaSolver:
     BASE_URL = "https://api.2captcha.com"
 
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, max_attempts: int):
         self.api_key = api_key
+        self.max_attempts = max_attempts
         self.client = httpx.AsyncClient(timeout=10)
-
 
     async def solve_turnistale(self):
         try:
@@ -75,7 +76,7 @@ class TwoCaptchaSolver:
     async def get_captcha_result(
         self, task_id: int | str
     ) -> tuple[Any, bool, int | str] | tuple[str, bool, int | str] | tuple[str, bool]:
-        for _ in range(10):
+        for _ in range(self.max_attempts):
             try:
                 resp = await self.client.post(
                     f"{self.BASE_URL}/getTaskResult",

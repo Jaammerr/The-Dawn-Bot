@@ -1,19 +1,21 @@
+import asyncio
 import pytz
 
 from datetime import datetime
 from tortoise import Model, fields
-from loguru import logger
 
 
 class Accounts(Model):
     email = fields.CharField(max_length=255, unique=True)
+    password = fields.CharField(max_length=255, null=True)
     app_id = fields.CharField(max_length=50, null=True)
     auth_token = fields.CharField(max_length=1024, null=True)
+
+    active_account_proxy = fields.CharField(max_length=255, null=True)
     sleep_until = fields.DatetimeField(null=True)
-    session_blocked_until = fields.DatetimeField(null=True)
 
     class Meta:
-        table = "dawn_accounts_v1.6"
+        table = "dawn_accounts_v1.9"
 
     @classmethod
     async def get_account(cls, email: str):
@@ -23,19 +25,56 @@ class Accounts(Model):
     async def get_accounts(cls):
         return await cls.all()
 
+
+    async def update_account_proxy(self, proxy: str):
+        self.active_account_proxy = proxy
+        await self.save()
+
     @classmethod
-    async def create_account(cls, email: str, app_id: str, auth_token: str = None):
+    async def get_account_proxy(cls, email: str) -> str:
+        account = await cls.get_account(email=email)
+        if account:
+            return account.active_account_proxy
+
+        return ""
+
+    @classmethod
+    async def create_or_update_account(cls, email: str, password: str = None, app_id: str = None, auth_token: str = None, proxy: str = None) -> "Accounts":
         account = await cls.get_account(email=email)
         if account is None:
-            account = await cls.create(email=email, auth_token=auth_token, app_id=app_id)
+            account = await cls.create(
+                email=email,
+                password=password,
+                auth_token=auth_token,
+                app_id=app_id,
+                active_account_proxy=proxy,
+            )
             return account
         else:
-            account.auth_token = auth_token
-            account.app_id = app_id
+            if password:
+                account.password = password
+            if app_id:
+                account.app_id = app_id
+            if auth_token:
+                account.auth_token = auth_token
+            if proxy:
+                account.active_account_proxy = proxy
 
             await account.save()
             return account
 
+    async def update_account(self, password: str = None, app_id: str = None, auth_token: str = None, proxy: str = None) -> "Accounts":
+        if password:
+            self.password = password
+        if app_id:
+            self.app_id = app_id
+        if auth_token:
+            self.auth_token = auth_token
+        if proxy:
+            self.active_account_proxy = proxy
+
+        await self.save()
+        return self
 
     @classmethod
     async def get_app_id(cls, email: str) -> str | None:
@@ -54,7 +93,7 @@ class Accounts(Model):
         return account.auth_token
 
     @classmethod
-    async def delete_account(cls, email: str):
+    async def delete_account(cls, email: str) -> bool:
         account = await cls.get_account(email=email)
         if account is None:
             return False
@@ -62,43 +101,28 @@ class Accounts(Model):
         await account.delete()
         return True
 
-    @classmethod
-    async def set_sleep_until(cls, email: str, sleep_until: datetime):
-        account = await cls.get_account(email=email)
-        if account is None:
-            return False
+    async def set_sleep_until(self, sleep_until: datetime) -> "Accounts":
+        if not isinstance(sleep_until, datetime):
+            raise ValueError("sleep_until must be a datetime object")
 
         if sleep_until.tzinfo is None:
             sleep_until = pytz.UTC.localize(sleep_until)
         else:
             sleep_until = sleep_until.astimezone(pytz.UTC)
 
-        account.sleep_until = sleep_until
-        await account.save()
-        logger.info(f"Account: {email} | Set new sleep_until: {sleep_until}")
-        return True
+        self.sleep_until = sleep_until
+        await self.save()
+        return self
 
-    @classmethod
-    async def set_session_blocked_until(
-        cls, email: str, app_id: str, session_blocked_until: datetime
-    ):
-        account = await cls.get_account(email=email)
-        if account is None:
-            account = await cls.create_account(email=email, app_id=app_id)
-            account.session_blocked_until = session_blocked_until
-            await account.save()
-            logger.info(
-                f"Account: {email} | Set new session_blocked_until: {session_blocked_until}"
-            )
-            return
+    async def clear_all_accounts_proxies(self) -> int:
+        async def clear_proxy(account: Accounts):
+            async with asyncio.Semaphore(500):
+                if account.active_account_proxy:
+                    account.active_account_proxy = None
+                    await account.save()
 
-        if session_blocked_until.tzinfo is None:
-            session_blocked_until = pytz.UTC.localize(session_blocked_until)
-        else:
-            session_blocked_until = session_blocked_until.astimezone(pytz.UTC)
+        accounts = await self.all()
+        tasks = [asyncio.create_task(clear_proxy(account)) for account in accounts]
+        await asyncio.gather(*tasks)
 
-        account.session_blocked_until = session_blocked_until
-        await account.save()
-        logger.info(
-            f"Account: {email} | Set new session_blocked_until: {session_blocked_until}"
-        )
+        return len(accounts)

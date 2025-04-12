@@ -50,7 +50,26 @@ class CaptchaSolvingFailed(Exception):
     pass
 
 
-class ServerError(APIError):
+class ServerError(Exception):
     """Raised when the server returns an error"""
 
     pass
+
+
+class NoAvailableProxies(Exception):
+    """Raised when there are no available proxies"""
+
+    pass
+
+
+class ProxyForbidden(Exception):
+    """Raised when the proxy is forbidden"""
+
+    pass
+
+
+class EmailValidationFailed(Exception):
+    """Raised when the email validation failed"""
+
+    pass
+

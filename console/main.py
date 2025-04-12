@@ -18,20 +18,25 @@ sys.path.append(os.path.realpath("."))
 
 class Console:
     MODULES = (
-        "Register",
-        "Farm",
-        "Complete tasks",
-        "Re-verify accounts",
-        "Export statistics",
-        "Exit",
+        "🆕 Register accounts",
+        "🔍 Verify accounts",
+        "🔑 Login accounts",
+        "🌾 Farm accounts",
+        "✅ Complete tasks",
+        "📊 Export accounts statistics",
+        "",
+        "🧹 Clean accounts proxies",
+        "❌ Exit",
     )
     MODULES_DATA = {
-        "Register": "register",
-        "Farm": "farm",
-        "Exit": "exit",
-        "Export statistics": "export_stats",
-        "Complete tasks": "complete_tasks",
-        "Re-verify accounts": "re_verify_accounts",
+        "🆕 Register accounts": "registration",
+        "🔍 Verify accounts": "verify",
+        "🔑 Login accounts": "login",
+        "🌾 Farm accounts": "farm",
+        "📊 Export accounts statistics": "export_stats",
+        "✅ Complete tasks": "complete_tasks",
+        "🧹 Clean accounts proxies": "clean_accounts_proxies",
+        "❌ Exit": "exit",
     }
 
     def __init__(self):
@@ -43,7 +48,7 @@ class Console:
         title = text2art("JamBit", font="small")
         styled_title = Text(title, style="bold cyan")
 
-        version = Text("VERSION: 1.8", style="blue")
+        version = Text("VERSION: 2.0.0", style="blue")
         telegram = Text("Channel: https://t.me/JamBitPY", style="green")
         github = Text("GitHub: https://github.com/Jaammerr", style="green")
 
@@ -76,25 +81,64 @@ class Console:
         return answers.get("module")
 
     def display_info(self):
-        table = Table(title="Dawn Configuration", box=box.ROUNDED)
-        table.add_column("Parameter", style="cyan")
-        table.add_column("Value", style="magenta")
+        main_table = Table(title="Configuration Overview", box=box.ROUNDED, show_lines=True)
 
-        if config.redirect_settings.enabled:
-            table.add_row("Redirect mode", "Enabled")
-            table.add_row("Redirect email", config.redirect_settings.email)
+        # Application Settings
+        app_settings_table = Table(box=box.SIMPLE)
+        app_settings_table.add_column("Parameter", style="cyan")
+        app_settings_table.add_column("Value", style="magenta")
+        app_settings_table.add_row("Threads", str(config.application_settings.threads))
+        app_settings_table.add_row("Keepalive Interval", str(config.application_settings.keepalive_interval) + " sec")
+        app_settings_table.add_row("Database URL", config.application_settings.database_url)
+        app_settings_table.add_row("Skip Logged Accounts", str(config.application_settings.skip_logged_accounts))
+        app_settings_table.add_row("Shuffle Accounts", str(config.application_settings.shuffle_accounts))
 
-        table.add_row("Accounts to register", str(len(config.accounts_to_register)))
-        table.add_row("Accounts to farm", str(len(config.accounts_to_farm)))
-        table.add_row("Accounts to re-verify", str(len(config.accounts_to_reverify)))
-        table.add_row("Threads", str(config.threads))
-        table.add_row(
-            "Delay before start",
-            f"{config.delay_before_start.min} - {config.delay_before_start.max} sec",
-        )
+        # Captcha Settings
+        captcha_settings_table = Table(box=box.SIMPLE)
+        captcha_settings_table.add_column("Parameter", style="cyan")
+        captcha_settings_table.add_column("Value", style="magenta")
+        captcha_settings_table.add_row("Captcha Service", config.captcha_settings.captcha_service)
+        captcha_settings_table.add_row("Max Captcha Solving Time", str(config.captcha_settings.max_captcha_solving_time) + " sec")
+
+        # Redirect Settings
+        redirect_settings_table = Table(box=box.SIMPLE)
+        redirect_settings_table.add_column("Parameter", style="cyan")
+        redirect_settings_table.add_column("Value", style="magenta")
+        redirect_settings_table.add_row("Enable", str(config.redirect_settings.enabled))
+        redirect_settings_table.add_row("Email", config.redirect_settings.email)
+        redirect_settings_table.add_row("IMAP Server", config.redirect_settings.imap_server)
+
+        # IMAP Settings
+        imap_settings_table = Table(box=box.SIMPLE)
+        imap_settings_table.add_column("Parameter", style="cyan")
+        imap_settings_table.add_column("Value", style="magenta")
+        imap_settings_table.add_row("Use Proxy for IMAP", str(config.imap_settings.use_proxy_for_imap))
+        imap_settings_table.add_row("Use Single IMAP", str(config.imap_settings.use_single_imap.enable))
+        imap_settings_table.add_row("Single IMAP Server", config.imap_settings.use_single_imap.imap_server)
+
+        # Accounts Table
+        accounts_table = Table(box=box.SIMPLE)
+        accounts_table.add_column("Parameter", style="cyan")
+        accounts_table.add_column("Value", style="magenta")
+
+        accounts_table.add_row("Accounts to register", str(len(config.accounts_to_register)))
+        accounts_table.add_row("Accounts to farm", str(len(config.accounts_to_farm)))
+        accounts_table.add_row("Accounts to login", str(len(config.accounts_to_login)))
+        accounts_table.add_row("Accounts to export stats", str(len(config.accounts_to_export_stats)))
+        accounts_table.add_row("Account to complete tasks", str(len(config.accounts_to_complete_tasks)))
+        accounts_table.add_row("Referral codes", str(len(config.referral_codes)))
+        accounts_table.add_row("Proxies", str(len(config.proxies)))
+
+        # Add all tables to the main table
+        main_table.add_column("Section")
+        main_table.add_row("[bold]Application Settings[/bold]", app_settings_table)
+        main_table.add_row("[bold]Captcha Settings[/bold]", captcha_settings_table)
+        main_table.add_row("[bold]Redirect Settings[/bold]", redirect_settings_table)
+        main_table.add_row("[bold]IMAP Settings[/bold]", imap_settings_table)
+        main_table.add_row("[bold]Files Information[/bold]", accounts_table)
 
         panel = Panel(
-            table,
+            main_table,
             expand=False,
             border_style="green",
             title="[bold yellow]System Information[/bold yellow]",

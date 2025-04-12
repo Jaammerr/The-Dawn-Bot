@@ -1,13 +1,15 @@
 import asyncio
-from typing import Any, Tuple
 import httpx
+
+from typing import Any, Tuple
 
 
 class AntiCaptchaSolver:
     BASE_URL = "https://api.anti-captcha.com"
 
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, max_attempts: int):
         self.api_key = api_key
+        self.max_attempts = max_attempts
         self.client = httpx.AsyncClient(timeout=10)
 
 
@@ -74,7 +76,7 @@ class AntiCaptchaSolver:
             return f"An unexpected error occurred: {err}", False
 
     async def get_captcha_result(self, task_id: int | str) -> Tuple[Any, bool]:
-        for _ in range(10):
+        for _ in range(self.max_attempts):
             try:
                 resp = await self.client.post(
                     f"{self.BASE_URL}/getTaskResult",
