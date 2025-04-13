@@ -40,7 +40,6 @@ def validate_error(error: Exception) -> str:
         "curl: (7)" in error_message
         or "curl: (28)" in error_message
         or "curl: (16)" in error_message
-        or "proxy" in error_message
         or "connect tunnel failed" in error_message
     ):
         return "Proxy failed"
