@@ -59,6 +59,7 @@ class ApplicationManager:
                 if (
                     config.attempts_and_delay_settings.delay_before_start.min > 0
                     and config.attempts_and_delay_settings.delay_before_start.max > 0
+                    and module_func.__name__ != "_process_farm"
                 ):
                     random_delay = random.randint(
                         config.attempts_and_delay_settings.delay_before_start.min, config.attempts_and_delay_settings.delay_before_start.max
