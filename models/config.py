@@ -81,6 +81,7 @@ class ApplicationSettings:
     database_url: str
     skip_logged_accounts: bool
     shuffle_accounts: bool
+    check_uniqueness_of_proxies: bool
 
 
 class Config(BaseConfig):

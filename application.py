@@ -50,24 +50,24 @@ class ApplicationManager:
 
         return await asyncio.gather(*tasks)
 
-    @staticmethod
     async def _safe_execute_module(
-            account: Account, module_func: Callable, progress: Progress
+            self, account: Account, module_func: Callable, progress: Progress
     ) -> Optional[dict]:
         try:
             async with semaphore:
                 if (
                     config.attempts_and_delay_settings.delay_before_start.min > 0
                     and config.attempts_and_delay_settings.delay_before_start.max > 0
-                    and module_func.__name__ != "_process_farm"
                 ):
-                    random_delay = random.randint(
-                        config.attempts_and_delay_settings.delay_before_start.min, config.attempts_and_delay_settings.delay_before_start.max
-                    )
-                    logger.info(
-                        f"Account: {account.email} | Sleep for {random_delay} sec before starting the process"
-                    )
-                    await asyncio.sleep(random_delay)
+                    if account.email not in self.accounts_with_initial_delay:
+                        random_delay = random.randint(
+                            config.attempts_and_delay_settings.delay_before_start.min, config.attempts_and_delay_settings.delay_before_start.max
+                        )
+                        logger.info(
+                            f"Account: {account.email} | Initial delay set to {random_delay} seconds | Execution will start in {random_delay} seconds"
+                        )
+                        self.accounts_with_initial_delay.add(account.email)
+                        await asyncio.sleep(random_delay)
 
                 result = await module_func()
                 if module_func.__name__ != "_process_farm":

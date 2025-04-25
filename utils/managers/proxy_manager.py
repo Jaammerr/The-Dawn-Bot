@@ -9,7 +9,8 @@ from core.exceptions.base import NoAvailableProxies
 
 
 class ProxyManager:
-    def __init__(self):
+    def __init__(self, check_uniqueness: bool) -> None:
+        self.check_uniqueness = check_uniqueness
         self.proxies = deque()
         self.lock = asyncio.Lock()
         self.active_proxies = set()
@@ -22,14 +23,19 @@ class ProxyManager:
             while True:
                 if self.proxies:
                     proxy = self.proxies.popleft()
-                    if proxy in self.active_proxies:
-                        continue
+                    if self.check_uniqueness:
+                        if proxy in self.active_proxies:
+                            continue
+                        else:
+                            self.active_proxies.add(proxy)
+                            return proxy
                     else:
-                        self.active_proxies.add(proxy)
                         return proxy
                 else:
                     logger.error("No available proxies, please add more proxies to the file and restart the application.")
                     logger.critical("No available proxies, please add more proxies to the file and restart the application.")
+                    await asyncio.sleep(1)
+
                     try:
                         exit(0)
                     except SystemExit:
