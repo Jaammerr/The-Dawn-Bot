@@ -9,6 +9,7 @@ application_settings:
   database_url: "sqlite://database/database.sqlite3" # SQlite or postgres, e.g. sqlite://database.db or postgres://user:password@localhost/dbname
   skip_logged_accounts: true
   shuffle_accounts: true
+  check_uniqueness_of_proxies: true
 
 
 attempts_and_delay_settings:
