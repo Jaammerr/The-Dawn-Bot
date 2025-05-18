@@ -4,17 +4,18 @@
 
 
 application_settings:
-  threads: 10
-  keepalive_interval: 300 # default 300 seconds
+  threads: 5
+  keepalive_interval: 600 # seconds
   database_url: "sqlite://database/database.sqlite3" # SQlite or postgres, e.g. sqlite://database.db or postgres://user:password@localhost/dbname
   skip_logged_accounts: true
   shuffle_accounts: true
+  check_uniqueness_of_proxies: true
 
 
 attempts_and_delay_settings:
   delay_before_start:
-    min: 5 # seconds
-    max: 10 # seconds
+    min: 30 # seconds
+    max: 60 # seconds
 
   error_delay: 5 # seconds
   max_register_attempts: 10
@@ -28,7 +29,7 @@ attempts_and_delay_settings:
 
 captcha_settings:
   captcha_service: "anticaptcha"           # Options: "anticaptcha" or "2captcha"
-  max_captcha_solving_time: 120            # seconds
+  max_captcha_solving_time: 120            # Time in seconds
 
   two_captcha_api_key: ""
   anti_captcha_api_key: ""
@@ -62,3 +63,4 @@ imap_settings:
     op.pl: imap.poczta.onet.pl
     onet.eu: imap.poczta.onet.pl
     gazeta.pl: imap.gazeta.pl
+    firemail.eu: imap.firemail.de

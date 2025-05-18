@@ -259,13 +259,13 @@ class DawnExtensionAPI(APIClient):
             "username": email,
             "extensionid": "fpdkjdnhkakefebpekbdhillbhonfjjp",
             "numberoftabs": 0,
-            "_v": "1.1.4",
+            "_v": "1.1.6",
         }
 
         return await self.send_request(
             method="/v1/userreward/keepalive",
             json_data=json_data,
-            verify=False,
+            verify=True,
             headers=headers,
             params={"appid": app_id},
         )
@@ -386,7 +386,7 @@ class DawnExtensionAPI(APIClient):
             "password": password,
             "logindata": {
                 '_v': {
-                    'version': '1.1.4',
+                    'version': '1.1.6',
                 },
                 'datetime': formatted_datetime_str,
             },

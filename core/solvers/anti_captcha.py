@@ -3,6 +3,8 @@ import httpx
 
 from typing import Any, Tuple
 
+from loguru import logger
+
 
 class AntiCaptchaSolver:
     BASE_URL = "https://api.anti-captcha.com"
