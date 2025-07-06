@@ -192,7 +192,7 @@ class DawnExtensionAPI(APIClient):
         }
 
         params = {
-            'app_v': '1.1.4',
+            'app_v': '1.1.8',
         }
 
         response = await self.send_request(
@@ -259,7 +259,7 @@ class DawnExtensionAPI(APIClient):
             "username": email,
             "extensionid": "fpdkjdnhkakefebpekbdhillbhonfjjp",
             "numberoftabs": 0,
-            "_v": "1.1.6",
+            "_v": "1.1.8",
         }
 
         return await self.send_request(
@@ -386,7 +386,7 @@ class DawnExtensionAPI(APIClient):
             "password": password,
             "logindata": {
                 '_v': {
-                    'version': '1.1.6',
+                    'version': '1.1.8',
                 },
                 'datetime': formatted_datetime_str,
             },

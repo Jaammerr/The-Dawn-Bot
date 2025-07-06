@@ -108,8 +108,13 @@ class Bot:
                 await self.handle_invalid_account(email, password, "unlogged")
                 if db_account_value:
                     await db_account_value.delete()
-                logger.warning(f"Account: {email} | Session expired, need to re-login | Exported to <<unlogged_accounts.txt>>")
-                return operation_failed(email, password)
+
+                # logger.warning(f"Account: {email} | Session expired, need to re-login | Exported to <<unlogged_accounts.txt>>")
+                # return operation_failed(email, password)
+
+                logger.warning(f"Account: {email} | Session expired, logging in..")
+                await self.process_login(check_if_account_logged_in=False)
+                return None
 
             case _:
                 if "Something went wrong" in error.error_message:
@@ -502,7 +507,7 @@ class Bot:
                 if api:
                     await api.close_session()
 
-    async def process_login(self) -> OperationResult:
+    async def process_login(self, check_if_account_logged_in: bool = True) -> OperationResult:
         max_attempts = config.attempts_and_delay_settings.max_login_attempts
 
         for attempt in range(max_attempts):
@@ -511,9 +516,10 @@ class Bot:
 
             try:
                 db_account_value = await Accounts.get_account(email=self.account_data.email)
-                if config.application_settings.skip_logged_accounts and db_account_value and db_account_value.auth_token:
-                    logger.warning(f"Account: {self.account_data.email} | Account already logged in, skipped")
-                    return operation_failed(self.account_data.email, self.account_data.password)
+                if check_if_account_logged_in is True:
+                    if config.application_settings.skip_logged_accounts and db_account_value and db_account_value.auth_token:
+                        logger.warning(f"Account: {self.account_data.email} | Account already logged in, skipped")
+                        return operation_failed(self.account_data.email, self.account_data.password)
 
                 proxy, app_id = await self._prepare_account_proxy_and_app_id(db_account_value)
                 api = DawnExtensionAPI(proxy=proxy if isinstance(proxy, str) else proxy.as_url)
