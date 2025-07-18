@@ -31,6 +31,7 @@ class FileOperations:
                 "banned": self.base_path / "accounts" / "banned_accounts.txt",
                 "unregistered": self.base_path / "accounts" / "unregistered_accounts.txt",
                 "unlogged": self.base_path / "accounts" / "unlogged_accounts.txt",
+                "invalid_proxy": self.base_path / "accounts" / "invalid_proxy_accounts.txt",
             },
             "verify": {
                 "success": self.base_path / "re_verify" / "verify_success.txt",
@@ -110,6 +111,23 @@ class FileOperations:
                         await file.write(f"{email}:{password}\n")
                     else:
                         await file.write(f"{email}\n")
+            except IOError as e:
+                logger.error(f"Account: {email} | Error writing to file (IOError): {e}")
+            except Exception as e:
+                logger.error(f"Account: {email} | Error writing to file: {e}")
+
+    async def export_invalid_proxy_account(self, email: str, password: str | None, proxy: str):
+        if "invalid_proxy" not in self.module_paths["accounts"]:
+            raise ValueError("Invalid proxy path not found in module paths")
+
+        file_path = self.module_paths["accounts"]["invalid_proxy"]
+        async with self.lock:
+            try:
+                async with aiofiles.open(file_path, "a") as file:
+                    if password:
+                        await file.write(f"{email}:{password}:{proxy}\n")
+                    else:
+                        await file.write(f"{email}:{proxy}\n")
             except IOError as e:
                 logger.error(f"Account: {email} | Error writing to file (IOError): {e}")
             except Exception as e:

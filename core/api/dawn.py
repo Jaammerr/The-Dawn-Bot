@@ -74,6 +74,7 @@ class APIClient:
         headers: dict = None,
         cookies: dict = None,
         verify: bool = True,
+        return_full_response: bool = False,
         max_retries: int = 2,
         retry_delay: float = 3.0,
     ):
@@ -118,6 +119,9 @@ class APIClient:
                         return response_json
                     except json.JSONDecodeError:
                         raise ServerError(f"Failed to decode response, most likely server error")
+
+                if return_full_response:
+                    return response
 
                 return response.text
 
@@ -192,7 +196,7 @@ class DawnExtensionAPI(APIClient):
         }
 
         params = {
-            'app_v': '1.1.8',
+            'app_v': '1.2.1',
         }
 
         response = await self.send_request(
@@ -205,20 +209,45 @@ class DawnExtensionAPI(APIClient):
 
         return response["data"]["appid"]
 
+    async def request_ip(self) -> str:
+        response = await self.send_request(
+            request_type="GET",
+            url="https://ipinfo.io/json",
+            verify=False,
+            return_full_response=True
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            return data["ip"]
+        else:
+            response = await self.send_request(
+                request_type="GET",
+                url="https://ipwho.is/",
+                verify=False,
+            )
+            if response.status_code == 200:
+                data = response.json()
+                return data["ip"]
+            else:
+                raise ServerError(f"Failed to get IP after 2 attempts: {response.status_code}")
+
     async def register(self, email: str, password: str, captcha_token: str, app_id: str) -> dict:
         headers = {
-            'user-agent': self.user_agent,
             'accept': 'application/json, text/plain, */*',
+            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'cf-turnstile-response': captcha_token,
             'content-type': 'application/json',
             'origin': 'https://dashboard.dawninternet.com',
             'referer': 'https://dashboard.dawninternet.com/',
-            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
-            'accept-encoding': 'gzip, deflate, br'
+            'user-agent': self.user_agent,
         }
 
+        ip = await self.request_ip()
+
         json_data = {
-            'firstname': names.get_first_name(),
-            'lastname': names.get_last_name(),
+            'first_name': names.get_first_name(),
+            'last_name': names.get_last_name(),
             'email': email,
             'mobile': '',
             'country': random.choice([
@@ -229,17 +258,15 @@ class DawnExtensionAPI(APIClient):
                 'CH', 'UA', 'GB', 'VA', 'UA'
             ]),
             'password': password,
-            'referralCode': random.choice(config.referral_codes) if config.referral_codes else "",
-            'token': captcha_token,
-            'isMarketing': False,
-            'browserName': 'chrome',
+            'referred_by': random.choice(config.referral_codes) if config.referral_codes else "",
+            'is_marketing': False,
+            'browser_name': 'Chrome',
+            'ip': ip,
         }
 
         return await self.send_request(
-            api_type="DASHBOARD",
-            method="/v2/dashboard/user/validate-register",
+            url="https://validator.dawninternet.net/api/v3/dashboard/auth/signup",
             json_data=json_data,
-            params={"appid": app_id},
             headers=headers,
         )
 
@@ -259,7 +286,7 @@ class DawnExtensionAPI(APIClient):
             "username": email,
             "extensionid": "fpdkjdnhkakefebpekbdhillbhonfjjp",
             "numberoftabs": 0,
-            "_v": "1.1.8",
+            "_v": "1.2.1",
         }
 
         return await self.send_request(
@@ -291,22 +318,28 @@ class DawnExtensionAPI(APIClient):
 
         return response["data"]
 
-    async def verify_registration(self, key: str, captcha_token: str) -> dict:
+    async def verify_registration(self, key: str) -> dict:
         headers = {
-            'user-agent': self.user_agent,
-            'content-type': 'application/json',
-            'accept': '*/*',
-            'origin': 'https://verify.dawninternet.com',
+            'accept': 'application/json, text/plain, */*',
             'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
-            'accept-encoding': 'gzip, deflate, br'
+            'content-type': 'application/json',
+            'origin': 'https://dashboard.dawninternet.com',
+            'referer': 'https://dashboard.dawninternet.com/',
+            'user-agent': self.user_agent,
         }
 
-        return await self.send_request(
-            url='https://verify.dawninternet.com/chromeapi/dawn/v1/userverify/verifycheck',
-            json_data={"token": captcha_token},
+        json_data = {
+            'verification_key': key,
+            'browser_name': None,
+            'ip': None,
+        }
+
+        response = await self.send_request(
+            url='https://validator.dawninternet.net/api/v3/dashboard/auth/verify',
+            json_data=json_data,
             headers=headers,
-            params={"key": key},
         )
+        return response["data"]
 
     async def resend_verify_link(self, email: str, puzzle_id: str, answer: str, app_id: str) -> dict:
         headers = {
@@ -386,7 +419,7 @@ class DawnExtensionAPI(APIClient):
             "password": password,
             "logindata": {
                 '_v': {
-                    'version': '1.1.8',
+                    'version': '1.2.1',
                 },
                 'datetime': formatted_datetime_str,
             },

@@ -20,7 +20,7 @@ class Bot:
         self.account_data = account_data
 
     @staticmethod
-    async def handle_invalid_account(email: str, password: str, reason: Literal["unverified", "banned", "unregistered", "unlogged"], log: bool = True) -> None:
+    async def handle_invalid_account(email: str, password: str, reason: Literal["unverified", "banned", "unregistered", "unlogged", "invalid_proxy"], log: bool = True, invalid_proxy: str = None) -> None:
         if reason == "unverified":
             if log:
                 logger.error(f"Account: {email} | Email not verified, run <<Register & Verify accounts>> module | Removed from list")
@@ -40,6 +40,9 @@ class Bot:
             if log:
                 logger.error(f"Account: {email} | Account not logged in, run <<Login accounts>> module | Removed from list")
             await file_operations.export_invalid_account(email, password, "unlogged")
+
+        elif reason == "invalid_proxy":
+            await file_operations.export_invalid_proxy_account(email, password, invalid_proxy)
 
         for account in config.accounts_to_farm:
             if account.email == email:
@@ -200,29 +203,37 @@ class Bot:
                 imap_server=self.account_data.imap_server,
                 email=self.account_data.email,
                 password=self.account_data.password,
-            ).extract_link(None if config.redirect_settings.use_proxy is False else self.account_data.proxy)
+            ).extract_link(None if config.imap_settings.use_proxy_for_imap is False else self.account_data.proxy)
 
         return confirm_url
 
     async def _update_account_proxy(self, account_data: Accounts, attempt: int | str) -> None:
         max_attempts = config.attempts_and_delay_settings.max_register_attempts if config.module == "registration" else config.attempts_and_delay_settings.max_login_attempts if config.module == "login" else config.attempts_and_delay_settings.max_tasks_attempts if config.module == "complete_tasks" else config.attempts_and_delay_settings.max_stats_attempts if config.module == "export_stats" else config.attempts_and_delay_settings.max_attempts_to_verify_email
 
-        proxy_changed_log = (
-            f"Account: {self.account_data.email} | Proxy changed | "
-            f"Retrying in {config.attempts_and_delay_settings.error_delay}s.. | "
-            f"Attempt: {attempt + 1}/{max_attempts}.."
-        )
+        if config.application_settings.disable_auto_proxy_change is False:
+            proxy_changed_log = (
+                f"Account: {self.account_data.email} | Proxy changed | "
+                f"Retrying in {config.attempts_and_delay_settings.error_delay}s.. | "
+                f"Attempt: {attempt + 1}/{max_attempts}.."
+            )
 
-        if not account_data:
-            logger.info(proxy_changed_log)
-            await asyncio.sleep(config.attempts_and_delay_settings.error_delay)
-            return
+            if not account_data:
+                logger.info(proxy_changed_log)
+                await asyncio.sleep(config.attempts_and_delay_settings.error_delay)
+                return
 
-        if account_data.active_account_proxy:
-            await proxy_manager.release_proxy(account_data.active_account_proxy)
+            if account_data.active_account_proxy:
+                await proxy_manager.release_proxy(account_data.active_account_proxy)
 
-        proxy = await proxy_manager.get_proxy()
-        await account_data.update_account_proxy(proxy.as_url if isinstance(proxy, Proxy) else proxy)
+            proxy = await proxy_manager.get_proxy()
+            await account_data.update_account_proxy(proxy.as_url if isinstance(proxy, Proxy) else proxy)
+
+        else:
+            proxy_changed_log = (
+                f"Account: {self.account_data.email} | Proxy change disabled | "
+                f"Retrying in {config.attempts_and_delay_settings.error_delay}s.. | "
+                f"Attempt: {attempt + 1}/{max_attempts}.."
+            )
 
         logger.info(proxy_changed_log)
         await asyncio.sleep(config.attempts_and_delay_settings.error_delay)
@@ -315,17 +326,15 @@ class Bot:
             return response.url.split("key=")[1]
 
 
-    async def _verify_registration(self, api: DawnExtensionAPI, key: str, app_id: str) -> dict:
-        captcha_token, task_id = await self.get_captcha_data(
-            api=api,
-            captcha_type="turnistale",
-            app_id=app_id,
-        )
+    @staticmethod
+    async def _verify_registration(api: DawnExtensionAPI, key: str) -> dict:
+        # captcha_token, task_id = await self.get_captcha_data(
+        #     api=api,
+        #     captcha_type="turnistale",
+        #     app_id=app_id,
+        # )
 
-        return await api.verify_registration(
-            key,
-            captcha_token
-        )
+        return await api.verify_registration(key)
 
 
     async def _register_account(self, api: DawnExtensionAPI, app_id: str) -> dict:
@@ -411,7 +420,7 @@ class Bot:
                     )
 
                 logger.success(f"Account: {self.account_data.email} | Link found, confirming registration...")
-                await self._verify_registration(api=api, key=key, app_id=app_id)
+                await self._verify_registration(api=api, key=key)
 
                 logger.success(f"Account: {self.account_data.email} | Registration verified and completed")
                 return operation_success(self.account_data.email, self.account_data.password)
@@ -480,9 +489,9 @@ class Bot:
                     return operation_failed(self.account_data.email, self.account_data.password)
 
                 logger.success(f"Account: {self.account_data.email} | Link found, verifying account..")
-                await self._verify_registration(api=api, key=key, app_id=app_id)
-                logger.success(f"Account: {self.account_data.email} | Account verified successfully")
+                await self._verify_registration(api=api, key=key)
 
+                logger.success(f"Account: {self.account_data.email} | Account verified successfully")
                 return operation_success(self.account_data.email, self.account_data.password)
 
             except APIError as error:
@@ -534,7 +543,7 @@ class Bot:
                 auth_token = await self._login_account(api=api, app_id=app_id)
                 await db_account_value.update_account(auth_token=auth_token)
 
-                logger.success(f"Account: {self.account_data.email} | Account logged in successfully")
+                logger.success(f"Account: {self.account_data.email} | Account logged in | Session saved to database")
                 return operation_success(self.account_data.email, self.account_data.password)
 
             except APIError as error:
@@ -678,6 +687,11 @@ class Bot:
                     return
 
             except Exception as error:
+                if "Proxy Authentication Required" not in str(error):
+                    logger.error(f"Account: {self.account_data.email} | Proxy authentication failed | Account deleted from farming")
+                    await self.handle_invalid_account(self.account_data.email, self.account_data.password, "invalid_proxy", invalid_proxy=api.proxy)
+                    return
+
                 result = await self.handle_generic_exception(error, attempt, max_attempts, "keepalive", db_account_value)
                 if result is not None:
                     return

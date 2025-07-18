@@ -82,6 +82,7 @@ class ApplicationSettings:
     skip_logged_accounts: bool
     shuffle_accounts: bool
     check_uniqueness_of_proxies: bool
+    disable_auto_proxy_change: bool
 
 
 class Config(BaseConfig):

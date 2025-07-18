@@ -4,18 +4,19 @@
 
 
 application_settings:
-  threads: 5
+  threads: 10
   keepalive_interval: 600 # seconds
   database_url: "sqlite://database/database.sqlite3" # SQlite or postgres, e.g. sqlite://database.db or postgres://user:password@localhost/dbname
   skip_logged_accounts: true
   shuffle_accounts: true
   check_uniqueness_of_proxies: true
+  disable_auto_proxy_change: true # disable automatic proxy change for farming (for example for ISP proxy)
 
 
 attempts_and_delay_settings:
   delay_before_start:
-    min: 30 # seconds
-    max: 60 # seconds
+    min: 0 # seconds
+    max: 0 # seconds
 
   error_delay: 5 # seconds
   max_register_attempts: 10
@@ -28,7 +29,7 @@ attempts_and_delay_settings:
 
 
 captcha_settings:
-  captcha_service: "anticaptcha"           # Options: "anticaptcha" or "2captcha"
+  captcha_service: "2captcha"           # Options: "anticaptcha" or "2captcha"
   max_captcha_solving_time: 120            # Time in seconds
 
   two_captcha_api_key: ""
