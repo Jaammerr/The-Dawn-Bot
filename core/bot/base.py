@@ -687,7 +687,7 @@ class Bot:
                     return
 
             except Exception as error:
-                if "Proxy Authentication Required" not in str(error):
+                if "Proxy Authentication Required" in str(error) and config.application_settings.disable_auto_proxy_change:
                     logger.error(f"Account: {self.account_data.email} | Proxy authentication failed | Account deleted from farming")
                     await self.handle_invalid_account(self.account_data.email, self.account_data.password, "invalid_proxy", invalid_proxy=api.proxy)
                     return
