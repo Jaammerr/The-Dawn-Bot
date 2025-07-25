@@ -15,7 +15,7 @@ from loader import config
 
 
 class APIClient:
-    EXTENSION_API_URL = "https://www.aeropres.in/chromeapi/dawn"
+    EXTENSION_API_URL = "https://ext-api.dawninternet.com/api"
     DASHBOARD_API_URL = "https://ext-api.dawninternet.com/chromeapi/dawn"
 
     def __init__(self, proxy: str = None):
@@ -196,7 +196,7 @@ class DawnExtensionAPI(APIClient):
         }
 
         params = {
-            'app_v': '1.2.1',
+            'app_v': '1.2.2',
         }
 
         response = await self.send_request(
@@ -286,10 +286,11 @@ class DawnExtensionAPI(APIClient):
             "username": email,
             "extensionid": "fpdkjdnhkakefebpekbdhillbhonfjjp",
             "numberoftabs": 0,
-            "_v": "1.2.1",
+            "_v": "1.2.2",
         }
 
         return await self.send_request(
+            api_type="DASHBOARD",
             method="/v1/userreward/keepalive",
             json_data=json_data,
             verify=True,
@@ -310,8 +311,8 @@ class DawnExtensionAPI(APIClient):
         }
 
         response = await self.send_request(
-            url="https://www.aeropres.in/api/atom/v1/userreferral/getpoint",
             request_type="GET",
+            method="/atom/v1/userreferral/getpoint",
             headers=headers,
             params={"appid": app_id},
         )
@@ -419,7 +420,7 @@ class DawnExtensionAPI(APIClient):
             "password": password,
             "logindata": {
                 '_v': {
-                    'version': '1.2.1',
+                    'version': '1.2.2',
                 },
                 'datetime': formatted_datetime_str,
             },
@@ -429,6 +430,7 @@ class DawnExtensionAPI(APIClient):
         }
 
         response = await self.send_request(
+            api_type="DASHBOARD",
             method="/v1/user/login/v2",
             json_data=json_data,
             params={"appid": app_id},
