@@ -82,11 +82,22 @@ class ApplicationManager:
 
     async def _farm_continuously(self, accounts: List[Account]) -> None:
         while True:
-            if config.application_settings.shuffle_accounts:
-                random.shuffle(accounts)
+            accounts_with_expired_sleep, accounts_waiting_sleep = await Accounts().get_accounts_stats(
+                emails=[
+                    account.email for account in accounts
+                ]
+            )
 
-            await self._execute_module_for_accounts(accounts, "farm")
-            await asyncio.sleep(5)
+            if accounts_with_expired_sleep > 0:
+                if config.application_settings.shuffle_accounts:
+                    random.shuffle(accounts)
+
+                logger.info(f"{accounts_with_expired_sleep} accounts are ready to farm. Executing farm module for them.")
+                await self._execute_module_for_accounts(accounts, "farm")
+            else:
+                logger.info(f"{accounts_waiting_sleep} accounts are sleeping. Waiting for any account to wake up.")
+
+            await asyncio.sleep(10)
 
     @staticmethod
     async def _clean_accounts_proxies() -> None:

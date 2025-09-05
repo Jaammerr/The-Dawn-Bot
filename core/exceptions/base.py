@@ -12,6 +12,7 @@ class APIErrorType(Enum):
     CAPTCHA_EXPIRED = "refresh your captcha!!"
     SESSION_EXPIRED = "Your app session expired, Please login again."
     UNREGISTERED_EMAIL = "user not found"
+    INVALID_TOKEN = "invalid token"
 
 
 class APIError(Exception):

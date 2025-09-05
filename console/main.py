@@ -22,7 +22,7 @@ class Console:
         "🔍 Verify accounts",
         "🔑 Login accounts",
         "🌾 Farm accounts",
-        "✅ Complete tasks",
+        # "✅ Complete tasks",
         "📊 Export accounts statistics",
         "",
         "🧹 Clean accounts proxies",
@@ -48,7 +48,7 @@ class Console:
         title = text2art("JamBit", font="small")
         styled_title = Text(title, style="bold cyan")
 
-        version = Text("VERSION: 2.2", style="blue")
+        version = Text("VERSION: 2.3", style="blue")
         telegram = Text("Channel: https://t.me/JamBitPY", style="green")
         github = Text("GitHub: https://github.com/Jaammerr", style="green")
 

@@ -107,10 +107,10 @@ class Bot:
                 await self.handle_invalid_account(email, password, "unregistered")
                 return operation_failed(email, password)
 
-            case APIErrorType.SESSION_EXPIRED:
-                await self.handle_invalid_account(email, password, "unlogged")
-                if db_account_value:
-                    await db_account_value.delete()
+            case APIErrorType.SESSION_EXPIRED | APIErrorType.INVALID_TOKEN:
+                # await self.handle_invalid_account(email, password, "unlogged")
+                # if db_account_value:
+                #     await db_account_value.delete()
 
                 # logger.warning(f"Account: {email} | Session expired, need to re-login | Exported to <<unlogged_accounts.txt>>")
                 # return operation_failed(email, password)
@@ -328,13 +328,19 @@ class Bot:
 
     @staticmethod
     async def _verify_registration(api: DawnExtensionAPI, key: str) -> dict:
-        # captcha_token, task_id = await self.get_captcha_data(
-        #     api=api,
-        #     captcha_type="turnistale",
-        #     app_id=app_id,
-        # )
-
         return await api.verify_registration(key)
+
+
+    async def _verify_confirmation_email(self, api: DawnExtensionAPI, key: str) -> dict:
+        captcha_token, task_id = await self.get_captcha_data(
+            api=api,
+            captcha_type="turnistale",
+        )
+
+        return await api.verify_confirmation(
+            key=key,
+            captcha_token=captcha_token,
+        )
 
 
     async def _register_account(self, api: DawnExtensionAPI, app_id: str) -> dict:
@@ -351,7 +357,7 @@ class Bot:
             captcha_token=captcha_token,
         )
 
-    async def _login_account(self, api: DawnExtensionAPI, app_id: str) -> str:
+    async def _login_account(self, email: str, password: str, api: DawnExtensionAPI, app_id: str) -> str:
         puzzle_id, answer, task_id = await self.get_captcha_data(
             api=api,
             captcha_type="image",
@@ -359,8 +365,8 @@ class Bot:
         )
 
         return await api.login(
-            email=self.account_data.email,
-            password=self.account_data.password,
+            email=email,
+            password=password,
             app_id=app_id,
             puzzle_id=puzzle_id,
             answer=answer,
@@ -489,9 +495,9 @@ class Bot:
                     return operation_failed(self.account_data.email, self.account_data.password)
 
                 logger.success(f"Account: {self.account_data.email} | Link found, verifying account..")
-                await self._verify_registration(api=api, key=key)
+                await self._verify_confirmation_email(api=api, key=key)
 
-                logger.success(f"Account: {self.account_data.email} | Account verified successfully")
+                logger.success(f"Account: {self.account_data.email} | Account verified")
                 return operation_success(self.account_data.email, self.account_data.password)
 
             except APIError as error:
@@ -537,14 +543,19 @@ class Bot:
                 if not app_id:
                     return operation_failed(self.account_data.email, self.account_data.password)
 
-                if not db_account_value:
+                if not db_account_value and check_if_account_logged_in is True:
                     db_account_value = await Accounts.create_or_update_account(email=self.account_data.email, password=self.account_data.password, app_id=app_id, proxy=proxy if isinstance(proxy, str) else proxy.as_url)
 
-                auth_token = await self._login_account(api=api, app_id=app_id)
+                auth_token = await self._login_account(
+                    email=db_account_value.email,
+                    password=db_account_value.password,
+                    api=api,
+                    app_id=app_id
+                )
                 await db_account_value.update_account(auth_token=auth_token)
 
                 logger.success(f"Account: {self.account_data.email} | Account logged in | Session saved to database")
-                return operation_success(self.account_data.email, self.account_data.password)
+                return operation_success(db_account_value.email, db_account_value.password)
 
             except APIError as error:
                 result = await self.handle_api_error(error, attempt, max_attempts, "login", db_account_value)
@@ -679,7 +690,7 @@ class Bot:
 
                 logger.info(f"Account: {self.account_data.email} | Sending keepalive...")
                 await api.keepalive(self.account_data.email, app_id=app_id)
-                logger.success(f"Account: {self.account_data.email} | Keepalive sent successfully")
+                logger.success(f"Account: {self.account_data.email} | Keepalive sent")
 
             except APIError as error:
                 result = await self.handle_api_error(error, attempt, max_attempts, "keepalive", db_account_value)

@@ -25,10 +25,30 @@ class Accounts(Model):
     async def get_accounts(cls):
         return await cls.all()
 
+    @classmethod
+    async def get_accounts_stats(cls, emails: list[str] = None) -> tuple[int, int]:
+        query = cls.all()
+        if emails:
+            query = query.filter(email__in=emails)
+
+        accounts = await query
+        now = datetime.now(pytz.UTC)
+
+        accounts_with_expired_sleep = len([
+            account for account in accounts
+            if (account.sleep_until is None) or (account.sleep_until <= now)
+        ])
+
+        accounts_waiting_sleep = len([
+            account for account in accounts
+            if account.sleep_until and account.sleep_until > now
+        ])
+
+        return accounts_with_expired_sleep, accounts_waiting_sleep
 
     async def update_account_proxy(self, proxy: str):
         self.active_account_proxy = proxy
-        await self.save()
+        await self.save(update_fields=["active_account_proxy"])
 
     @classmethod
     async def get_account_proxy(cls, email: str) -> str:
@@ -39,7 +59,14 @@ class Accounts(Model):
         return ""
 
     @classmethod
-    async def create_or_update_account(cls, email: str, password: str = None, app_id: str = None, auth_token: str = None, proxy: str = None) -> "Accounts":
+    async def create_or_update_account(
+            cls,
+            email: str,
+            password: str | None = None,
+            app_id: str | None = None,
+            auth_token: str | None = None,
+            proxy: str | None = None,
+    ) -> "Accounts":
         account = await cls.get_account(email=email)
         if account is None:
             account = await cls.create(
@@ -50,30 +77,53 @@ class Accounts(Model):
                 active_account_proxy=proxy,
             )
             return account
-        else:
-            if password:
-                account.password = password
-            if app_id:
-                account.app_id = app_id
-            if auth_token:
-                account.auth_token = auth_token
-            if proxy:
-                account.active_account_proxy = proxy
 
-            await account.save()
-            return account
+        update_fields: list[str] = []
 
-    async def update_account(self, password: str = None, app_id: str = None, auth_token: str = None, proxy: str = None) -> "Accounts":
-        if password:
+        if password is not None:
+            account.password = password
+            update_fields.append("password")
+        if app_id is not None:
+            account.app_id = app_id
+            update_fields.append("app_id")
+        if auth_token is not None:
+            account.auth_token = auth_token
+            update_fields.append("auth_token")
+        if proxy is not None:
+            account.active_account_proxy = proxy
+            update_fields.append("active_account_proxy")
+
+        if update_fields:
+            await account.save(update_fields=update_fields)
+
+        return account
+
+    async def update_account(
+            self,
+            password: str | None = None,
+            app_id: str | None = None,
+            auth_token: str | None = None,
+            proxy: str | None = None,
+    ) -> "Accounts":
+        update_fields: list[str] = []
+
+        if password is not None:
             self.password = password
-        if app_id:
+            update_fields.append("password")
+        if app_id is not None:
             self.app_id = app_id
-        if auth_token:
+            update_fields.append("app_id")
+        if auth_token is not None:
+            print(f"Updating auth_token for {self.email} | {auth_token}")
             self.auth_token = auth_token
-        if proxy:
+            update_fields.append("auth_token")
+        if proxy is not None:
             self.active_account_proxy = proxy
+            update_fields.append("active_account_proxy")
 
-        await self.save()
+        if update_fields:
+            await self.save(update_fields=update_fields)
+
         return self
 
     @classmethod
@@ -111,7 +161,7 @@ class Accounts(Model):
             sleep_until = sleep_until.astimezone(pytz.UTC)
 
         self.sleep_until = sleep_until
-        await self.save()
+        await self.save(update_fields=["sleep_until"])
         return self
 
     async def clear_all_accounts_proxies(self) -> int:
@@ -119,7 +169,7 @@ class Accounts(Model):
             async with asyncio.Semaphore(500):
                 if account.active_account_proxy:
                     account.active_account_proxy = None
-                    await account.save()
+                    await account.save(update_fields=["active_account_proxy"])
 
         accounts = await self.all()
         tasks = [asyncio.create_task(clear_proxy(account)) for account in accounts]

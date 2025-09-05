@@ -342,6 +342,31 @@ class DawnExtensionAPI(APIClient):
         )
         return response["data"]
 
+    async def verify_confirmation(self, key: str, captcha_token: str) -> dict:
+        headers = {
+            'accept': '*/*',
+            'accept-language': 'uk,en-US;q=0.9,en;q=0.8,ru;q=0.7',
+            'content-type': 'application/json',
+            'origin': 'https://verify.dawninternet.com',
+            'user-agent': self.user_agent,
+        }
+
+        params = {
+            'key': key,
+        }
+
+        json_data = {
+            'token': captcha_token,
+        }
+
+        return await self.send_request(
+            url='https://verify.dawninternet.com/chromeapi/dawn/v1/userverify/verifycheck',
+            request_type="POST",
+            json_data=json_data,
+            params=params,
+            headers=headers,
+        )
+
     async def resend_verify_link(self, email: str, puzzle_id: str, answer: str, app_id: str) -> dict:
         headers = {
             'accept': '*/*',
@@ -358,7 +383,7 @@ class DawnExtensionAPI(APIClient):
         }
 
         return await self.send_request(
-            method="/v1/user/resendverifylink/v2",
+            url="https://ext-api.dawninternet.com/chromeapi/dawn/v1/user/resendverifylink/v2",
             json_data=json_data,
             params={"appid": app_id},
             headers=headers,

@@ -10,7 +10,7 @@ application_settings:
   skip_logged_accounts: true
   shuffle_accounts: true
   check_uniqueness_of_proxies: true
-  disable_auto_proxy_change: true # disable automatic proxy change for farming (for example for ISP proxy)
+  disable_auto_proxy_change: false # disable automatic proxy change for farming (for example for ISP proxy)
 
 
 attempts_and_delay_settings:
@@ -64,4 +64,3 @@ imap_settings:
     op.pl: imap.poczta.onet.pl
     onet.eu: imap.poczta.onet.pl
     gazeta.pl: imap.gazeta.pl
-    firemail.eu: imap.firemail.de

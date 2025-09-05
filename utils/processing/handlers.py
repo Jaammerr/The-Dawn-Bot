@@ -23,10 +23,10 @@ async def handle_sleep(email: str, sleep_until) -> bool:
     sleep_until = sleep_until.replace(tzinfo=pytz.UTC)
 
     if sleep_until > current_time:
-        sleep_duration = (sleep_until - current_time).total_seconds()
-        logger.debug(
-            f"Account: {email} | Sleeping until next keepalive {sleep_until} (duration: {sleep_duration:.2f} seconds)"
-        )
+        # sleep_duration = (sleep_until - current_time).total_seconds()
+        # logger.debug(
+        #     f"Account: {email} | Sleeping until next keepalive {sleep_until} (duration: {sleep_duration:.2f} seconds)"
+        # )
         return True
 
     return False
