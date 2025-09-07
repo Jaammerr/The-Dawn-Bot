@@ -114,7 +114,6 @@ class Accounts(Model):
             self.app_id = app_id
             update_fields.append("app_id")
         if auth_token is not None:
-            print(f"Updating auth_token for {self.email} | {auth_token}")
             self.auth_token = auth_token
             update_fields.append("auth_token")
         if proxy is not None:
