@@ -22,7 +22,7 @@ class Console:
         "🔍 Verify accounts",
         "🔑 Login accounts",
         "🌾 Farm accounts",
-        # "✅ Complete tasks",
+        "✅ Complete tasks",
         "📊 Export accounts statistics",
         "",
         "🧹 Clean accounts proxies",
