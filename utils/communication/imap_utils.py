@@ -171,17 +171,30 @@ class LinkExtractor:
     def _collect_messages(self, mailbox: MailBox):
         messages = []
 
-        for msg in mailbox.fetch(reverse=True, criteria=AND(from_="no-reply@mail.privy.io"), limit=10, mark_seen=True):
-            if self.redirect_email and self.redirect_email != msg.to[0]:
-                continue
-            msg_date = msg.date.replace(tzinfo=timezone.utc) if msg.date.tzinfo is None else msg.date
-            messages.append((msg, msg_date))
+        allowed_exact = {
+            "no-reply@privy.io",
+            "no-reply@mail.privy.io",
+        }
 
-        for msg in mailbox.fetch(reverse=True, limit=10, mark_seen=True):
-            if msg.from_.startswith("hello_at_dawn_internet_com") or msg.from_ == "no-reply@mail.privy.io":
+        def to_from_prefix(email_like: str) -> str:
+            s = email_like.strip().lower()
+            s = s.replace('-', '_').replace('@', '_at_').replace('.', '_')
+            return s
+
+        allowed_prefix = {to_from_prefix(e) for e in allowed_exact}
+
+        for sender in allowed_exact:
+            for msg in mailbox.fetch(reverse=True, criteria=AND(from_=sender), limit=10, mark_seen=True):
                 if self.redirect_email and self.redirect_email != msg.to[0]:
                     continue
+                msg_date = msg.date.replace(tzinfo=timezone.utc) if msg.date.tzinfo is None else msg.date
+                messages.append((msg, msg_date))
 
+        for msg in mailbox.fetch(reverse=True, limit=10, mark_seen=True):
+            f = (msg.from_ or "").lower()
+            if any(f.startswith(p) for p in allowed_prefix) or f in allowed_exact:
+                if self.redirect_email and self.redirect_email != msg.to[0]:
+                    continue
                 msg_date = msg.date.replace(tzinfo=timezone.utc) if msg.date.tzinfo is None else msg.date
                 messages.append((msg, msg_date))
 
