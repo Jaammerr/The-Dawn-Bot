@@ -171,22 +171,22 @@ class Bot:
                 logger.info(f"Account: {self.account_data.email} | Confirming authentication..")
                 auth_data = await api.authenticate(self.account_data.email, code)
 
-                session_token = auth_data["token"]
-                privy_auth_token = auth_data["privy_access_token"]
-                refresh_token = auth_data["refresh_token"]
+                session_token = auth_data.get('token')
+                privy_auth_token = auth_data.get('privy_access_token')
+                refresh_token = auth_data.get('refresh_token')
 
                 logger.info(f"Account: {self.account_data.email} | Authenticating to extension..")
                 api.session_token = session_token
                 ext_auth_data = await api.extension_auth()
 
-                extension_token = ext_auth_data["session_token"]
-                user_id = ext_auth_data["user"]["id"]
+                extension_token = ext_auth_data.get('session_token')
                 logger.success(f"Account: {self.account_data.email} | Authenticated to extension")
 
                 if not all([session_token, privy_auth_token, extension_token, refresh_token]):
-                    logger.error(f"Account: {self.account_data.email} | Failed to retrieve all tokens")
+                    logger.error(f"Account: {self.account_data.email} | Failed to retrieve all tokens | Response: {auth_data}")
                     return operation_failed(self.account_data.email, self.account_data.email_password)
 
+                user_id = ext_auth_data["user"]["id"]
                 await Accounts.create_or_update_account(
                     email=self.account_data.email,
                     email_password=self.account_data.email_password,
