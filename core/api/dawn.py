@@ -1,23 +1,17 @@
 import asyncio
 import json
-import random
-import names
+import uuid
 
 from datetime import datetime, timezone
 from typing import Literal
 
 from curl_cffi.requests import AsyncSession, Response
-from utils.processing.handlers import require_auth_token
+from utils.processing.handlers import require_extension_token, require_session_token, require_privy_auth_token
 from core.exceptions.base import APIError, SessionRateLimited, ServerError, ProxyForbidden
-from loader import config
-
 
 
 
 class APIClient:
-    EXTENSION_API_URL = "https://ext-api.dawninternet.com/api"
-    DASHBOARD_API_URL = "https://ext-api.dawninternet.com/chromeapi/dawn"
-
     def __init__(self, proxy: str = None):
         self.proxy = proxy
         self.session = self._create_session()
@@ -44,18 +38,27 @@ class APIClient:
     async def _verify_response(response_data: dict | list):
         if isinstance(response_data, dict):
             if "status" in str(response_data):
-                if isinstance(response_data, dict):
-                    if response_data.get("status") is False:
-                        raise APIError(
-                            f"API returned an error: {response_data}", response_data
-                        )
+                if response_data.get("status") is False:
+                    raise APIError(
+                        f"API returned an error: {response_data}", response_data
+                    )
 
             elif "success" in str(response_data):
-                if isinstance(response_data, dict):
-                    if response_data.get("success") is False:
-                        raise APIError(
-                            f"API returned an error: {response_data}", response_data
-                        )
+                if response_data.get("success") is False:
+                    raise APIError(
+                        f"API returned an error: {response_data}", response_data
+                    )
+
+            elif "error" in str(response_data):
+                raise APIError(
+                    f"API returned an error: {response_data}", response_data
+                )
+
+            elif "message" in str(response_data):
+                if response_data.get("message") == "Invalid token":
+                    raise APIError(
+                        f"API returned an error: {response_data}", response_data
+                    )
 
     async def close_session(self) -> None:
         try:
@@ -65,12 +68,10 @@ class APIClient:
 
     async def send_request(
         self,
+        url: str,
         request_type: Literal["POST", "GET", "OPTIONS"] = "POST",
-        api_type: Literal["EXTENSION", "DASHBOARD"] = "EXTENSION",
-        method: str = None,
         json_data: dict = None,
         params: dict = None,
-        url: str = None,
         headers: dict = None,
         cookies: dict = None,
         verify: bool = True,
@@ -78,8 +79,6 @@ class APIClient:
         max_retries: int = 2,
         retry_delay: float = 3.0,
     ):
-        url = url if url else f"{self.EXTENSION_API_URL}{method}" if api_type == "EXTENSION" else f"{self.DASHBOARD_API_URL}{method}"
-
         for attempt in range(max_retries):
             try:
                 if request_type == "POST":
@@ -107,8 +106,9 @@ class APIClient:
                 if verify:
                     if response.status_code == 403 and "403 Forbidden" in response.text:
                         raise ProxyForbidden(f"Proxy forbidden - {response.status_code}")
+
                     elif response.status_code == 403:
-                        raise SessionRateLimited("Session is rate limited or blocked by Cloudflare")
+                        raise APIError(f"Access forbidden - {response.status_code} | Details: {response.text[0:100]}", response.json())
 
                     if response.status_code in (500, 502, 503, 504):
                         raise ServerError(f"Server error - {response.status_code}")
@@ -144,326 +144,251 @@ class APIClient:
 
 
 class DawnExtensionAPI(APIClient):
-    def __init__(self, auth_token: str = None, proxy: str = None):
+    def __init__(
+            self,
+            privy_auth_token: str = None,
+            session_token: str = None,
+            extension_token: str = None,
+            proxy: str = None
+    ):
         super().__init__(proxy)
-        self.auth_token = auth_token
+        self.privy_auth_token = privy_auth_token
+        self.session_token = session_token
+        self.extension_token = extension_token
 
-    async def get_puzzle_id(self, app_id: str) -> str:
+    async def init_auth(self, email: str) -> dict:
         headers = {
-            'user-agent': self.user_agent,
-            'accept': '*/*',
-            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
-            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
-            'host': 'ext-api.dawninternet.com',
-        }
-
-        response = await self.send_request(
-            api_type="DASHBOARD",
-            method="/v1/puzzle/get-puzzle",
-            request_type="GET",
-            params={"appid": app_id},
-            headers=headers,
-        )
-        return response["puzzle_id"]
-
-    async def get_puzzle_image(self, puzzle_id: str, app_id: str) -> str:
-        headers = {
-            'user-agent': self.user_agent,
-            'accept': '*/*',
-            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
-            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
-            'host': 'ext-api.dawninternet.com',
-        }
-
-        response = await self.send_request(
-            api_type="DASHBOARD",
-            method="/v1/puzzle/get-puzzle-image",
-            request_type="GET",
-            params={"puzzle_id": puzzle_id, "appid": app_id},
-            headers=headers,
-        )
-
-        return response.get("imgBase64")
-
-
-    async def get_app_id(self) -> str:
-        headers = {
-            'user-agent': self.user_agent,
-            'accept': '*/*',
-            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
-            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
-            'host': 'ext-api.dawninternet.com',
-        }
-
-        params = {
-            'app_v': '1.2.2',
-        }
-
-        response = await self.send_request(
-            api_type="DASHBOARD",
-            method="/v1/appid/getappid",
-            request_type="GET",
-            params=params,
-            headers=headers,
-        )
-
-        return response["data"]["appid"]
-
-    async def request_ip(self) -> str:
-        response = await self.send_request(
-            request_type="GET",
-            url="https://ipinfo.io/json",
-            verify=False,
-            return_full_response=True
-        )
-
-        if response.status_code == 200:
-            data = response.json()
-            return data["ip"]
-        else:
-            response = await self.send_request(
-                request_type="GET",
-                url="https://ipwho.is/",
-                verify=False,
-            )
-            if response.status_code == 200:
-                data = response.json()
-                return data["ip"]
-            else:
-                raise ServerError(f"Failed to get IP after 2 attempts: {response.status_code}")
-
-    async def register(self, email: str, password: str, captcha_token: str, app_id: str) -> dict:
-        headers = {
-            'accept': 'application/json, text/plain, */*',
-            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
-            'cf-turnstile-response': captcha_token,
+            'Host': 'auth.privy.io',
+            'Connection': 'keep-alive',
+            'privy-client': 'react-auth:2.24.0',
+            'privy-ui': 't',
+            'privy-app-id': 'cmfb724md0057la0bs4tg0vf1',
+            'User-Agent': self.user_agent,
+            'accept': 'application/json',
+            'privy-ca-id': str(uuid.uuid4()),
+            'Origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
             'content-type': 'application/json',
-            'origin': 'https://dashboard.dawninternet.com',
-            'referer': 'https://dashboard.dawninternet.com/',
-            'user-agent': self.user_agent,
         }
-
-        ip = await self.request_ip()
 
         json_data = {
-            'first_name': names.get_first_name(),
-            'last_name': names.get_last_name(),
             'email': email,
-            'mobile': '',
-            'country': random.choice([
-                'AL', 'AD', 'AT', 'BY', 'BE', 'BA', 'BG', 'HR', 'CZ', 'DK',
-                'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IS', 'IE', 'IT', 'LV',
-                'LI', 'LT', 'LU', 'MT', 'MD', 'MC', 'ME', 'NL', 'MK', 'NO',
-                'PL', 'PT', 'RO', 'RU', 'SM', 'RS', 'SK', 'SI', 'ES', 'SE',
-                'CH', 'UA', 'GB', 'VA', 'UA'
-            ]),
-            'password': password,
-            'referred_by': random.choice(config.referral_codes) if config.referral_codes else "",
-            'is_marketing': False,
-            'browser_name': 'Chrome',
-            'ip': ip,
         }
 
         return await self.send_request(
-            url="https://validator.dawninternet.net/api/v3/dashboard/auth/signup",
+            url='https://auth.privy.io/api/v1/passwordless/init',
+            request_type='POST',
             json_data=json_data,
             headers=headers,
         )
 
-    @require_auth_token
-    async def keepalive(self, email: str, app_id: str) -> dict | str:
+    async def authenticate(self, email: str, code: str) -> dict:
         headers = {
-            'user-agent': self.user_agent,
+            'Host': 'auth.privy.io',
+            'Connection': 'keep-alive',
+            'privy-client': 'react-auth:2.24.0',
+            'privy-app-id': 'cmfb724md0057la0bs4tg0vf1',
+            'User-Agent': self.user_agent,
+            'accept': 'application/json',
+            'privy-ca-id': str(uuid.uuid4()),
+            'Origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
             'content-type': 'application/json',
-            'authorization': f'Berear {self.auth_token}',
-            'accept': '*/*',
-            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
-            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
-            'accept-encoding': 'gzip, deflate, br'
         }
 
         json_data = {
-            "username": email,
-            "extensionid": "fpdkjdnhkakefebpekbdhillbhonfjjp",
-            "numberoftabs": 0,
-            "_v": "1.2.2",
+            'email': email,
+            'code': code,
+            'mode': 'login-or-sign-up',
         }
 
         return await self.send_request(
-            api_type="DASHBOARD",
-            method="/v1/userreward/keepalive",
-            json_data=json_data,
-            verify=True,
-            headers=headers,
-            params={"appid": app_id},
-        )
-
-    @require_auth_token
-    async def user_info(self, app_id: str) -> dict:
-        headers = {
-            'authorization': f'Berear {self.auth_token}',
-            'user-agent': self.user_agent,
-            'content-type': 'application/json',
-            'accept': '*/*',
-            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
-            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
-            'accept-encoding': 'gzip, deflate, br'
-        }
-
-        response = await self.send_request(
-            request_type="GET",
-            method="/atom/v1/userreferral/getpoint",
-            headers=headers,
-            params={"appid": app_id},
-        )
-
-        return response["data"]
-
-    async def verify_registration(self, key: str) -> dict:
-        headers = {
-            'accept': 'application/json, text/plain, */*',
-            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
-            'content-type': 'application/json',
-            'origin': 'https://dashboard.dawninternet.com',
-            'referer': 'https://dashboard.dawninternet.com/',
-            'user-agent': self.user_agent,
-        }
-
-        json_data = {
-            'verification_key': key,
-            'browser_name': None,
-            'ip': None,
-        }
-
-        response = await self.send_request(
-            url='https://validator.dawninternet.net/api/v3/dashboard/auth/verify',
+            url='https://auth.privy.io/api/v1/passwordless/authenticate',
+            request_type='POST',
             json_data=json_data,
             headers=headers,
         )
-        return response["data"]
 
-    async def verify_confirmation(self, key: str, captcha_token: str) -> dict:
+
+    @require_session_token
+    async def extension_auth(self) -> dict:
         headers = {
-            'accept': '*/*',
-            'accept-language': 'uk,en-US;q=0.9,en;q=0.8,ru;q=0.7',
-            'content-type': 'application/json',
-            'origin': 'https://verify.dawninternet.com',
-            'user-agent': self.user_agent,
+            'Host': 'api.dawninternet.com',
+            'Connection': 'keep-alive',
+            'x-privy-token': self.session_token,
+            'User-Agent': self.user_agent,
+            'Accept': 'application/json, text/plain, */*',
+            'Origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
         }
 
         params = {
-            'key': key,
-        }
-
-        json_data = {
-            'token': captcha_token,
-        }
-
-        return await self.send_request(
-            url='https://verify.dawninternet.com/chromeapi/dawn/v1/userverify/verifycheck',
-            request_type="POST",
-            json_data=json_data,
-            params=params,
-            headers=headers,
-        )
-
-    async def resend_verify_link(self, email: str, puzzle_id: str, answer: str, app_id: str) -> dict:
-        headers = {
-            'accept': '*/*',
-            'accept-language': 'en-US,en;q=0.9,ru;q=0.8',
-            'content-type': 'application/json',
-            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
-            'user-agent': self.user_agent,
-        }
-
-        json_data = {
-            'username': email,
-            'puzzle_id': puzzle_id,
-            'ans': answer,
-        }
-
-        return await self.send_request(
-            url="https://ext-api.dawninternet.com/chromeapi/dawn/v1/user/resendverifylink/v2",
-            json_data=json_data,
-            params={"appid": app_id},
-            headers=headers,
-        )
-
-    @require_auth_token
-    async def complete_tasks(self, app_id: str, tasks: list[str] = None, delay: int = 1) -> None:
-        if not tasks:
-            tasks = ["telegramid", "discordid", "twitter_x_id"]
-
-        headers = {
-            'authorization': f'Brearer {self.auth_token}',
-            'user-agent': self.user_agent,
-            'content-type': 'application/json',
-            'accept': '*/*',
-            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
-            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
-            'accept-encoding': 'gzip, deflate, br'
-        }
-
-        for task in tasks:
-            await self.send_request(
-                method="/v1/profile/update",
-                json_data={task: task},
-                headers=headers,
-                params={"appid": app_id},
-            )
-
-            await asyncio.sleep(delay)
-
-    async def verify_session(self) -> tuple[bool, str]:
-        try:
-            await self.user_info()
-            return True, "Session is valid"
-
-        except ServerError:
-            return True, "Server error"
-
-        except APIError as error:
-            return False, str(error)
-
-    async def login(self, email: str, password: str, puzzle_id: str, answer: str, app_id: str) -> str:
-        headers = {
-            'user-agent': self.user_agent,
-            'content-type': 'application/json',
-            'accept': '*/*',
-            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
-            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
-            'accept-encoding': 'gzip, deflate, br'
-        }
-
-        current_time = datetime.now(timezone.utc)
-        formatted_datetime_str = (
-            current_time.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
-        )
-
-        json_data = {
-            "username": email,
-            "password": password,
-            "logindata": {
-                '_v': {
-                    'version': '1.2.2',
-                },
-                'datetime': formatted_datetime_str,
-            },
-            "puzzle_id": puzzle_id,
-            "ans": answer,
-            "appid": app_id,
+            'jwt': 'true',
+            'role': 'extension',
         }
 
         response = await self.send_request(
-            api_type="DASHBOARD",
-            method="/v1/user/login/v2",
+            url='https://api.dawninternet.com/auth',
+            request_type='GET',
+            headers=headers,
+            params=params,
+        )
+
+        return response
+
+
+    @require_extension_token
+    async def request_user_info(self, user_id: str) -> dict:
+        headers = {
+            'Host': 'api.dawninternet.com',
+            'Connection': 'keep-alive',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+            'Authorization': f'Bearer {self.extension_token}',
+            'Accept': '*/*',
+            'Origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Content-Type': 'application/json',
+        }
+
+        params = {
+            'user_id': user_id,
+        }
+
+        return await self.send_request(
+            url='https://api.dawninternet.com/point',
+            request_type='GET',
+            headers=headers,
+            params=params,
+        )
+
+
+    @require_extension_token
+    async def extension_ping(self, user_id: str, extension_id: str = "fpdkjdnhkakefebpekbdhillbhonfjjp") -> dict:
+        headers = {
+            'Host': 'api.dawninternet.com',
+            'Connection': 'keep-alive',
+            'User-Agent': self.user_agent,
+            'Authorization': f'Bearer {self.extension_token}',
+            'Accept': '*/*',
+            'Origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Content-Type': 'application/json',
+        }
+
+        params = {
+            'role': 'extension',
+        }
+
+        now = datetime.now(timezone.utc)
+        timestamp = now.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+
+        json_data = {
+            'user_id': user_id,
+            'extension_id': extension_id,
+            'timestamp': timestamp,
+        }
+
+        response = await self.send_request(
+            url='https://api.dawninternet.com/ping',
+            request_type='POST',
+            headers=headers,
+            params=params,
             json_data=json_data,
-            params={"appid": app_id},
+        )
+
+        if response["message"] != "pong":
+            raise APIError(f"Ping failed: {response}")
+
+        return response
+
+
+    @require_session_token
+    async def append_referral_code(self, referral_code: str) -> dict:
+        headers = {
+            'Host': 'api.dawninternet.com',
+            'Connection': 'keep-alive',
+            'sec-ch-ua-platform': '"Windows"',
+            'x-privy-token': self.session_token,
+            'User-Agent': self.user_agent,
+            'Accept': 'application/json, text/plain, */*',
+            'Origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Content-Type': 'application/json',
+        }
+
+        json_data = {
+            'referralCode': referral_code,
+        }
+
+        return await self.send_request(
+            url='https://api.dawninternet.com/referral/use',
+            request_type='POST',
+            headers=headers,
+            json_data=json_data,
+        )
+
+
+    @require_session_token
+    async def get_referral_code(self) -> dict:
+        headers = {
+            'Host': 'api.dawninternet.com',
+            'Connection': 'keep-alive',
+            'x-privy-token': self.session_token,
+            'User-Agent': self.user_agent,
+            'Accept': 'application/json, text/plain, */*',
+            'Origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+        }
+
+        return await self.send_request(
+            url='https://api.dawninternet.com/referral/my-code',
+            request_type='GET',
             headers=headers,
         )
 
-        bearer = response.get("data", {}).get("token")
-        if bearer:
-            return bearer
-        else:
-            raise APIError(f"Failed to login: {response}")
+
+    @require_session_token
+    async def request_referral_stats(self) -> dict:
+        headers = {
+            'Host': 'api.dawninternet.com',
+            'Connection': 'keep-alive',
+            'x-privy-token': self.session_token,
+            'User-Agent': self.user_agent,
+            'Accept': 'application/json, text/plain, */*',
+            'Origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+        }
+
+        return await self.send_request(
+            url='https://api.dawninternet.com/referral/stats',
+            request_type='GET',
+            headers=headers,
+        )
+
+
+    @require_privy_auth_token
+    async def refresh_privy_session(self, refresh_token: str) -> dict:
+        headers = {
+            'Host': 'auth.privy.io',
+            'Connection': 'keep-alive',
+            'authorization': f'Bearer {self.privy_auth_token}',
+            'privy-client': 'react-auth:2.24.0',
+            'privy-app-id': 'cmfb724md0057la0bs4tg0vf1',
+            'User-Agent': self.user_agent,
+            'accept': 'application/json',
+            'privy-ca-id': str(uuid.uuid4()),
+            'Origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'content-type': 'application/json',
+        }
+
+        json_data = {
+            'refresh_token': refresh_token,
+        }
+
+        return await self.send_request(
+            url='https://auth.privy.io/api/v1/sessions',
+            request_type='POST',
+            json_data=json_data,
+            headers=headers,
+        )

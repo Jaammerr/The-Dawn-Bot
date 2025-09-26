@@ -22,7 +22,6 @@ class ConfigLoader:
             "attempts_and_delay_settings",
             "redirect_settings",
             "imap_settings",
-            "captcha_settings"
         }
     )
 
@@ -79,7 +78,6 @@ class ConfigLoader:
     def _parse_accounts(
             self,
             filename: str,
-            mode: Literal["register_accounts", "login_accounts", "verify_accounts", "default_accounts"]
     ) -> Generator[Account, None, None]:
         try:
             lines = self._read_file(self.data_path / filename, allow_empty=True)
@@ -90,30 +88,15 @@ class ConfigLoader:
                     if not line:
                         continue
 
-                    if mode in ("login_accounts", "register_accounts", "verify_accounts"):
-                        parts = line.split(":")
-                        if len(parts) == 2:
-                            email, password = parts
-                            yield Account(
-                                email=email.replace(" ", ""),
-                                password=password.replace(" ", ""),
-                            )
-                        else:
-                            raise ConfigurationError(f"Invalid account format: {line}")
-
-                    elif mode == "default_accounts":
-                        parts = line.split(":")
-                        if len(parts) == 2:
-                            email, password = parts
-                            yield Account(
-                                email=email.replace(" ", ""),
-                                password=password.replace(" ", ""),
-                            )
-                        else:
-                            yield Account(
-                                email=line.replace(" ", ""),
-                                password="",
-                            )
+                    parts = line.split(":")
+                    if len(parts) == 2:
+                        email, password = parts
+                        yield Account(
+                            email=email.replace(" ", ""),
+                            email_password=password.replace(" ", ""),
+                        )
+                    else:
+                        raise ConfigurationError(f"Invalid account format: {line}")
 
                 except (ValueError, IndexError):
                     logger.warning(f"Invalid account format: {line} | File: {filename}")
@@ -152,51 +135,49 @@ class ConfigLoader:
             for account in accounts:
                 account.imap_server = server
 
-    def load(self) -> Config:
+    def load(self) -> Config | None:
         try:
             params = self._load_yaml()
             proxies = self._parse_proxies()
 
-            accounts_to_farm = list(self._parse_accounts("farm_accounts.txt", "default_accounts"))
-            accounts_to_export_stats = list(self._parse_accounts("export_stats_accounts.txt", "default_accounts"))
-            accounts_to_complete_tasks = list(self._parse_accounts("complete_tasks_accounts.txt", "default_accounts"))
-            accounts_to_register = list(self._parse_accounts("register_accounts.txt", "register_accounts"))
-            accounts_to_login = list(self._parse_accounts("login_accounts.txt", "login_accounts"))
-            accounts_to_verify = list(self._parse_accounts("verify_accounts.txt", "verify_accounts"))
+            accounts_to_farm = list(self._parse_accounts("farm_accounts.txt"))
+            accounts_to_export_stats = list(self._parse_accounts("export_stats_accounts.txt"))
+            # accounts_to_complete_tasks = list(self._parse_accounts("complete_tasks_accounts.txt"))
+            accounts_to_login = list(self._parse_accounts("login_accounts.txt"))
             referral_codes = self._parse_referral_codes()
 
             if not any([
                 accounts_to_farm,
-                accounts_to_register,
                 accounts_to_login,
                 accounts_to_export_stats,
-                accounts_to_verify,
+                # accounts_to_complete_tasks
             ]):
-                raise ConfigurationError("No accounts found in files: login_accounts.txt, farm_accounts.txt, register_accounts.txt, export_stats_accounts.txt, verify_accounts.txt | Please add accounts to the files")
+                raise ConfigurationError("No accounts found in files: login_accounts.txt, farm_accounts.txt, export_stats_accounts.txt, complete_tasks_accounts.txt | Please add accounts to the files")
 
             use_single_imap = params["imap_settings"]["use_single_imap"]["enable"]
             single_imap_server = params["imap_settings"].get("use_single_imap", {}).get("imap_server")
             imap_servers = params["imap_settings"].get("servers")
 
-            if (accounts_to_register or accounts_to_verify) and not use_single_imap:
-                if accounts_to_register:
-                    self.validate_domains(accounts_to_register, imap_servers)
-                if accounts_to_verify:
-                    self.validate_domains(accounts_to_verify, imap_servers)
+            all_accounts = [
+                *accounts_to_farm,
+                *accounts_to_login,
+                *accounts_to_export_stats,
+                # *accounts_to_complete_tasks,
+            ]
+
+            if use_single_imap:
+                if all_accounts:
+                    self._assign_imap_server(all_accounts, single_imap_server)
             else:
-                if accounts_to_register:
-                    self._assign_imap_server(accounts_to_register, single_imap_server)
-                if accounts_to_verify:
-                    self._assign_imap_server(accounts_to_verify, single_imap_server)
+                if all_accounts:
+                    self.validate_domains(all_accounts, imap_servers)
 
             return Config(
                 **params,
-                accounts_to_register=accounts_to_register,
                 accounts_to_login=accounts_to_login,
                 accounts_to_farm=accounts_to_farm,
                 accounts_to_export_stats=accounts_to_export_stats,
-                accounts_to_complete_tasks=accounts_to_complete_tasks,
-                accounts_to_verify=accounts_to_verify,
+                # accounts_to_complete_tasks=accounts_to_complete_tasks,
                 proxies=proxies,
                 referral_codes=referral_codes,
             )

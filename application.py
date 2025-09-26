@@ -1,7 +1,7 @@
 import asyncio
 import random
 
-from typing import List, Any, Set, Optional, Callable
+from typing import List, Any, Set, Optional, Callable, Coroutine
 from loguru import logger
 
 from core.modules.executor import ModuleExecutor
@@ -16,12 +16,10 @@ class ApplicationManager:
     def __init__(self):
         self.accounts_with_initial_delay: Set[str] = set()
         self.module_map = {
-            "registration": (config.accounts_to_register, self._execute_module_for_accounts),
             "login": (config.accounts_to_login, self._execute_module_for_accounts),
             "farm": (config.accounts_to_farm, self._farm_continuously),
-            "complete_tasks": (config.accounts_to_complete_tasks, self._execute_module_for_accounts),
+            # "complete_tasks": (config.accounts_to_complete_tasks, self._execute_module_for_accounts),
             "export_stats": (config.accounts_to_export_stats, self._execute_module_for_accounts),
-            "verify": (config.accounts_to_verify, self._execute_module_for_accounts),
         }
 
     @staticmethod
@@ -34,7 +32,7 @@ class ApplicationManager:
 
     async def _execute_module_for_accounts(
         self, accounts: List[Account], module_name: str
-    ) -> tuple[Any]:
+    ) -> list[Any]:
         progress = Progress(len(accounts))
         if module_name != "farm":
             logger.debug(f"Progress: 0/{progress.total}")
@@ -87,6 +85,11 @@ class ApplicationManager:
                     account.email for account in accounts
                 ]
             )
+
+            if accounts_with_expired_sleep == 0 and accounts_waiting_sleep == 0:
+                logger.warning("No accounts to farming found, either you forgot to log in them or the file farm_accounts.txt is empty")
+                input("Press Enter to continue...")
+                return
 
             if accounts_with_expired_sleep > 0:
                 if config.application_settings.shuffle_accounts:

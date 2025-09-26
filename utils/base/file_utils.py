@@ -3,10 +3,14 @@ import time
 import aiofiles
 
 from pathlib import Path
-from aiocsv import AsyncWriter
 from loguru import logger
 
-from models import ModuleType, OperationResult, StatisticData
+from openpyxl.reader.excel import load_workbook
+from openpyxl.utils import get_column_letter
+from openpyxl.workbook import Workbook
+from openpyxl.worksheet.worksheet import Worksheet
+
+from models import ModuleType, OperationResult
 
 
 
@@ -15,27 +19,16 @@ class FileOperations:
         self.base_path = Path(base_path)
         self.lock = asyncio.Lock()
         self.module_paths: dict[ModuleType, dict[str, Path]] = {
-            "register": {
-                "success": self.base_path / "registration" / "registration_success.txt",
-                "failed": self.base_path / "registration" / "registration_failed.txt",
-            },
             "tasks": {
                 "success": self.base_path / "tasks" / "tasks_success.txt",
                 "failed": self.base_path / "tasks" / "tasks_failed.txt",
             },
             "stats": {
-                "base": self.base_path / "stats" / "accounts_stats.csv",
+                "base": self.base_path / "stats" / "accounts_stats.xlsx",
             },
             "accounts": {
-                "unverified": self.base_path / "accounts" / "unverified_accounts.txt",
-                "banned": self.base_path / "accounts" / "banned_accounts.txt",
-                "unregistered": self.base_path / "accounts" / "unregistered_accounts.txt",
                 "unlogged": self.base_path / "accounts" / "unlogged_accounts.txt",
                 "invalid_proxy": self.base_path / "accounts" / "invalid_proxy_accounts.txt",
-            },
-            "verify": {
-                "success": self.base_path / "re_verify" / "verify_success.txt",
-                "failed": self.base_path / "re_verify" / "verify_failed.txt",
             },
             "login": {
                 "success": self.base_path / "login" / "login_success.txt",
@@ -60,26 +53,43 @@ class FileOperations:
         for module_name, module_paths in self.module_paths.items():
             if module_name == "stats":
                 timestamp = int(time.time())
-
                 for path_key, path in module_paths.items():
                     path.parent.mkdir(parents=True, exist_ok=True)
-
                     if path_key == "base":
-                        new_path = path.parent / f"accounts_stats_{timestamp}.csv"
+                        new_path = path.parent / f"accounts_stats_{timestamp}.xlsx"
                         self.module_paths[module_name][path_key] = new_path
-                        path = new_path
+                        await asyncio.to_thread(self._create_excel_with_header, new_path)
 
-                        async with aiofiles.open(path, "w") as f:
-                            writer = AsyncWriter(f)
-                            await writer.writerow([
-                                "Email",
-                                "Referral Code",
-                                "Points",
-                                "Referral Points",
-                                "Total Points",
-                                "Registration Date",
-                                "Completed Tasks",
-                            ])
+    @staticmethod
+    def _create_excel_with_header(xlsx_path: Path, sheet_name: str = "Stats"):
+        wb = Workbook()
+        ws: Worksheet = wb.active
+        ws.title = sheet_name
+        ws.append([
+            "Email",
+            "Email Password",
+            "Points",
+            "Referral Code",
+            "Total Referrals",
+            "Total Referral Points",
+            "Completed Tasks",
+        ])
+
+        widths = [46, 66, 14, 14, 14, 20, 24]
+        for i, w in enumerate(widths, start=1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+        wb.save(xlsx_path)
+
+    async def _append_excel_row(self, xlsx_path: Path, row: list, sheet_name: str = "Stats"):
+        await asyncio.to_thread(self._append_excel_row_sync, xlsx_path, row, sheet_name)
+
+    @staticmethod
+    def _append_excel_row_sync(xlsx_path: Path, row: list, sheet_name: str = "Stats"):
+        wb = load_workbook(xlsx_path)
+        ws: Worksheet = wb[sheet_name] if sheet_name in wb.sheetnames else wb.active
+        ws.append(row)
+        wb.save(xlsx_path)
+        wb.close()
 
     async def export_result(self, result: OperationResult, module: ModuleType):
         if module not in self.module_paths:
@@ -91,12 +101,11 @@ class FileOperations:
         async with self.lock:
             try:
                 async with aiofiles.open(file_path, "a") as file:
-                    await file.write(f"{result['identifier']}:{result['data']}\n")
+                    await file.write(f"{result['email']}:{result['email_password']}\n")
             except IOError as e:
-                logger.error(f"Account: {result['identifier']} | Error writing to file (IOError): {e}")
+                logger.error(f"Account: {result['email']} | Error writing to file (IOError): {e}")
             except Exception as e:
-                logger.error(f"Account: {result['identifier']} | Error writing to file: {e}")
-
+                logger.error(f"Account: {result['email']} | Error writing to file: {e}")
 
 
     async def export_invalid_account(self, email: str, password: str | None, reason: str):
@@ -116,6 +125,7 @@ class FileOperations:
             except Exception as e:
                 logger.error(f"Account: {email} | Error writing to file: {e}")
 
+
     async def export_invalid_proxy_account(self, email: str, password: str | None, proxy: str):
         if "invalid_proxy" not in self.module_paths["accounts"]:
             raise ValueError("Invalid proxy path not found in module paths")
@@ -133,35 +143,34 @@ class FileOperations:
             except Exception as e:
                 logger.error(f"Account: {email} | Error writing to file: {e}")
 
-    async def export_stats(self, data: StatisticData):
+    async def export_stats(self, result: OperationResult):
         file_path = self.module_paths["stats"]["base"]
         async with self.lock:
             try:
-                async with aiofiles.open(file_path, mode="a", newline="") as f:
-                    writer = AsyncWriter(f)
+                if result["status"] is True:
+                    row = [
+                        result["email"],
+                        result["email_password"],
+                        result["data"]["user_info"]["points"],
+                        result["data"]["referral_stats"]["referralCode"],
+                        result["data"]["referral_stats"]["totalReferrals"],
+                        result["data"]["referral_stats"]["totalPointsEarned"],
+                        False,
+                    ]
+                else:
+                    row = [
+                        result["email"],
+                        result["email_password"],
+                        "N/A",
+                        "N/A",
+                        "N/A",
+                        "N/A",
+                        "N/A",
+                    ]
 
-                    if not data or not data["referralPoint"] or not data["rewardPoint"]:
-                        return
-
-                    task_points = 0
-                    if data["rewardPoint"]["twitter_x_id_points"] == 5000 and data["rewardPoint"]["discordid_points"] == 5000 and data["rewardPoint"]["telegramid_points"] == 5000:
-                        task_points = 15000
-
-                    await writer.writerow(
-                        [
-                            data["referralPoint"]["email"],
-                            data["referralPoint"]["referralCode"],
-                            data["rewardPoint"]["points"],
-                            data["referralPoint"]["commission"],
-                            float(data["rewardPoint"]["points"])
-                            + float(data["referralPoint"]["commission"]) + task_points,
-                            data["rewardPoint"]["registerpointsdate"],
-                            True if task_points == 15000 else False,
-                        ]
-                    )
+                await self._append_excel_row(file_path, row)
 
             except IOError as e:
-                logger.error(f"Error writing to file (IOError): {e}")
-
+                logger.error(f"Account: {result['email']} | Error writing to Excel (IOError): {e}")
             except Exception as e:
-                logger.error(f"Error writing to file: {e}")
+                logger.error(f"Account: {result['email']} | Error writing to Excel: {e}")

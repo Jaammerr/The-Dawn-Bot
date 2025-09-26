@@ -1,4 +1,4 @@
-# 🌅 Dawn Extension Bot [v2.3]
+# 🌅 Dawn Extension Bot [v3.0]
 
 <div align="center">
   <img src="./console/images/console.png" alt="Dawn Extension Bot Console" width="600"/>
@@ -35,10 +35,9 @@ Detailed step-by-step instructions to help you install and use **The Dawn Bot** 
 
 ## 🧩 Modules
 
-- Register accounts  
-- Login accounts  
+- Register & Login accounts 
 - Farm accounts  
-- Complete tasks 
+- Complete tasks (will be added as soon as devs fix them)
 - Export accounts statistics  
 - Clean accounts proxies
 
@@ -50,6 +49,5 @@ Detailed step-by-step instructions to help you install and use **The Dawn Bot** 
 - Stable internet connection
 - Valid email accounts
 - Working proxies (HTTP/SOCKS5)
-- Captcha service subscription (2captcha/anticaptcha)
 
 ---

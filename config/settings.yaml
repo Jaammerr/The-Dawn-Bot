@@ -4,8 +4,8 @@
 
 
 application_settings:
-  threads: 10
-  keepalive_interval: 600 # seconds
+  threads: 5
+  ping_interval: 600 # seconds
   database_url: "sqlite://database/database.sqlite3" # SQlite or postgres, e.g. sqlite://database.db or postgres://user:password@localhost/dbname
   skip_logged_accounts: true
   shuffle_accounts: true
@@ -19,21 +19,9 @@ attempts_and_delay_settings:
     max: 0 # seconds
 
   error_delay: 5 # seconds
-  max_register_attempts: 10
   max_login_attempts: 5
   max_stats_attempts: 3
-  max_tasks_attempts: 3
-  max_attempts_to_receive_app_id: 3
-  max_attempts_to_verify_email: 10
-  max_attempts_to_send_keepalive: 3
-
-
-captcha_settings:
-  captcha_service: "2captcha"           # Options: "anticaptcha" or "2captcha"
-  max_captcha_solving_time: 120            # Time in seconds
-
-  two_captcha_api_key: ""
-  anti_captcha_api_key: ""
+  max_farm_attempts: 3
 
 
 redirect_settings:

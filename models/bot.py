@@ -5,12 +5,7 @@ ModuleType = Literal["register", "tasks", "stats", "accounts", "verify", "login"
 
 
 class OperationResult(TypedDict):
-    identifier: str
-    data: str
+    email: str
+    email_password: str
+    data: dict | str | None
     status: bool
-
-
-class StatisticData(TypedDict):
-    success: bool
-    referralPoint: dict | None
-    rewardPoint: dict | None

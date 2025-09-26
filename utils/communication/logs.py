@@ -1,35 +1,21 @@
-from models import OperationResult, StatisticData
+from models import OperationResult
 
 
-def operation_failed(email: str, password: str) -> OperationResult:
+def operation_failed(email: str, email_password: str, data: dict | str | None = None) -> OperationResult:
     return OperationResult(
-        identifier=email,
-        data=password,
+        email=email,
+        email_password=email_password,
+        data=data,
         status=False,
     )
 
 
-def operation_success(email: str, password: str) -> OperationResult:
+def operation_success(email: str, email_password: str, data: dict | str | None = None) -> OperationResult:
     return OperationResult(
-        identifier=email,
-        data=password,
+        email=email,
+        email_password=email_password,
+        data=data,
         status=True,
-    )
-
-
-def operation_export_stats_success(user_info: dict) -> StatisticData:
-    return StatisticData(
-        success=True,
-        referralPoint=user_info["referralPoint"],
-        rewardPoint=user_info["rewardPoint"],
-    )
-
-
-def operation_export_stats_failed() -> StatisticData:
-    return StatisticData(
-        success=False,
-        referralPoint=None,
-        rewardPoint=None,
     )
 
 

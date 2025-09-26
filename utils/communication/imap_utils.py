@@ -99,7 +99,7 @@ class EmailValidator:
         self.email = email
         self.password = password
 
-    async def validate(self, proxy: Optional[Proxy] = None) -> OperationResult:
+    async def validate(self, proxy: Optional[Proxy] = None) -> dict:
         logger.info(f"Account: {self.email} | Checking if email is valid...")
 
         try:
@@ -114,21 +114,18 @@ class EmailValidator:
             await asyncio.to_thread(login_sync)
             return {
                 "status": True,
-                "identifier": self.email,
                 "data": f"Valid:{datetime.now()}",
             }
 
         except MailboxLoginError:
             return {
                 "status": False,
-                "identifier": self.email,
                 "data": "Invalid credentials",
             }
 
         except Exception as error:
             return {
                 "status": False,
-                "identifier": self.email,
                 "data": f"validation failed: {str(error)}",
             }
 
@@ -163,9 +160,8 @@ class LinkExtractor:
         self.delay_seconds = delay_seconds
         self.redirect_email = redirect_email
         self.link_patterns = [
-            r"(https://www\.aeropres\.in/chromeapi/dawn/v1/userverify/verifyconfirm\?key=[a-f0-9-]+)",
-            r"(https?://webmail\.online/go\.php\?r=(?:[A-Za-z0-9+/]|%[0-9A-Fa-f]{2})+)",
-            r"(https?://u\d+\.ct\.sendgrid\.net/ls/click\?upn=[A-Za-z0-9\-_%.+=]+(?:[A-Za-z0-9\-_%.=&+])*)"
+            r">\s*(\d{6})\s*<",  # Pattern for code between HTML tags
+            r"(?:^|\s)(\d{6})(?:\s|$)"  # Pattern for standalone 6-digit code
         ]
 
     async def extract_link(self, proxy: Optional[Proxy] = None) -> OperationResult:
@@ -175,14 +171,14 @@ class LinkExtractor:
     def _collect_messages(self, mailbox: MailBox):
         messages = []
 
-        for msg in mailbox.fetch(reverse=True, criteria=AND(from_="hello@dawninternet.com"), limit=10, mark_seen=True):
+        for msg in mailbox.fetch(reverse=True, criteria=AND(from_="no-reply@mail.privy.io"), limit=10, mark_seen=True):
             if self.redirect_email and self.redirect_email != msg.to[0]:
                 continue
             msg_date = msg.date.replace(tzinfo=timezone.utc) if msg.date.tzinfo is None else msg.date
             messages.append((msg, msg_date))
 
         for msg in mailbox.fetch(reverse=True, limit=10, mark_seen=True):
-            if msg.from_.startswith("hello_at_dawn_internet_com") or msg.from_ == "hello@dawninternet.com":
+            if msg.from_.startswith("hello_at_dawn_internet_com") or msg.from_ == "no-reply@mail.privy.io":
                 if self.redirect_email and self.redirect_email != msg.to[0]:
                     continue
 
@@ -250,13 +246,12 @@ class LinkExtractor:
 
         return await asyncio.to_thread(search_in)
 
-    async def search_with_retries(self, proxy: Optional[Proxy] = None) -> OperationResult:
+    async def search_with_retries(self, proxy: Optional[Proxy] = None) -> dict:
         for attempt in range(self.max_attempts):
             link = await self._search_in_all_folders(proxy)
             if link:
                 return {
                     "status": True,
-                    "identifier": self.email,
                     "data": link,
                 }
 
@@ -267,6 +262,5 @@ class LinkExtractor:
         logger.error(f"Account: {self.email} | Max attempts reached, code not found in any folder")
         return {
             "status": False,
-            "identifier": self.email,
             "data": "Max attempts reached",
         }

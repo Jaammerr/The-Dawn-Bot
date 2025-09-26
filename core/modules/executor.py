@@ -1,6 +1,6 @@
 from core.bot.base import Bot
 from loader import file_operations
-from models import Account
+from models import Account, OperationResult
 
 
 class ModuleExecutor:
@@ -8,25 +8,20 @@ class ModuleExecutor:
         self.account = account
         self.bot = Bot(account)
 
-    async def _process_registration(self) -> None:
-        operation_result = await self.bot.process_registration()
-        await file_operations.export_result(operation_result, "register")
-
-    async def _process_verify(self) -> None:
-        operation_result = await self.bot.process_verify()
-        await file_operations.export_result(operation_result, "verify")
-
     async def _process_login(self) -> None:
         operation_result = await self.bot.process_login()
-        await file_operations.export_result(operation_result, "login")
+        if isinstance(operation_result, dict):
+            await file_operations.export_result(operation_result, "login")
 
-    async def _process_complete_tasks(self) -> None:
-        operation_result = await self.bot.process_complete_tasks()
-        await file_operations.export_result(operation_result, "tasks")
+    # async def _process_complete_tasks(self) -> None:
+    #     operation_result = await self.bot.process_complete_tasks()
+    #     if isinstance(operation_result, dict):
+    #         await file_operations.export_result(operation_result, "tasks")
 
     async def _process_export_stats(self) -> None:
-        data = await self.bot.process_export_stats()
-        await file_operations.export_stats(data)
+        operation_result = await self.bot.process_export_stats()
+        if isinstance(operation_result, dict):
+            await file_operations.export_stats(operation_result)
 
     async def _process_farm(self) -> None:
         await self.bot.process_farm()

@@ -2,17 +2,10 @@ from enum import Enum
 
 
 class APIErrorType(Enum):
-    INCORRECT_CAPTCHA = "Incorrect answer. Try again!"
-    INVALID_CAPTCHA_TOKEN = "Invalid captcha"
-    UNVERIFIED_EMAIL = "Email not verified , Please check spam folder incase you did not get email"
-    EMAIL_EXISTS = "email already exists"
-    BANNED = "Something went wrong #BRL4"
-    DOMAIN_BANNED = "Something went wrong #BR4"
-    DOMAIN_BANNED_2 = "Something went wrong #BR10"
-    CAPTCHA_EXPIRED = "refresh your captcha!!"
-    SESSION_EXPIRED = "Your app session expired, Please login again."
-    UNREGISTERED_EMAIL = "user not found"
-    INVALID_TOKEN = "invalid token"
+    INVALID_CREDENTIALS = "Invalid email and code combination"
+    INVALID_TOKEN = "Invalid token"
+    CUSTOM_DOMAIN_VIOLATION = "Custom domain violation"
+    PING_INTERVAL_VIOLATION = "Ping interval violation"
 
 
 class APIError(Exception):
@@ -30,8 +23,12 @@ class APIError(Exception):
 
     @property
     def error_message(self) -> str:
-        if self.response_data and "message" in self.response_data:
+        if self.response_data and "error" in self.response_data:
+            return self.response_data["error"]
+
+        elif self.response_data and "message" in self.response_data:
             return self.response_data["message"]
+
         return self.error
 
     def __str__(self):
