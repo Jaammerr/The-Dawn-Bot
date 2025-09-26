@@ -6,6 +6,7 @@ class APIErrorType(Enum):
     INVALID_TOKEN = "Invalid token"
     CUSTOM_DOMAIN_VIOLATION = "Custom domain violation"
     PING_INTERVAL_VIOLATION = "Ping interval violation"
+    DOMAIN_LIMIT_EXCEEDED = "Custom domain user limit exceeded"
 
 
 class APIError(Exception):

@@ -55,7 +55,7 @@ class APIClient:
                 )
 
             elif "message" in str(response_data):
-                if response_data.get("message") == "Invalid token":
+                if response_data.get("message") in ["Invalid token", "Custom domain user limit exceeded"]:
                     raise APIError(
                         f"API returned an error: {response_data}", response_data
                     )

@@ -183,7 +183,7 @@ class Bot:
                 logger.success(f"Account: {self.account_data.email} | Authenticated to extension")
 
                 if not all([session_token, privy_auth_token, extension_token, refresh_token]):
-                    logger.error(f"Account: {self.account_data.email} | Failed to retrieve all tokens | Response: {auth_data}")
+                    logger.error(f"Account: {self.account_data.email} | Failed to retrieve all tokens")
                     return operation_failed(self.account_data.email, self.account_data.email_password)
 
                 user_id = ext_auth_data["user"]["id"]
