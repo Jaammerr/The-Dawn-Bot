@@ -325,9 +325,11 @@ class Bot:
                 logger.info(f"Account: {self.account_data.email} | Sending ping..")
                 await api.extension_ping(user_id=db_account_value.user_id)
                 logger.success(f"Account: {self.account_data.email} | Ping sent")
+                await self._set_next_sleep_until(db_account_value)
 
             except APIError as error:
                 logger.error(f"Account: {self.account_data.email} | Error occurred during sending ping (APIError): {error} | Skipped until next cycle")
+                await self._set_next_sleep_until(db_account_value)
                 return None
 
             except Exception as error:
@@ -339,6 +341,7 @@ class Bot:
                 is_last_attempt = attempt == max_attempts - 1
                 if is_last_attempt:
                     logger.error(f"Account: {self.account_data.email} | Max attempts reached, unable to send ping | Last error: {error} | Skipped until next cycle")
+                    await self._set_next_sleep_until(db_account_value)
                     return None
 
                 error = validate_error(error)
