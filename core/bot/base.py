@@ -307,7 +307,7 @@ class Bot:
                     db_account_value.session_token,
                     db_account_value.refresh_token,
                 ]):
-                    await self.handle_invalid_account(self.account_data.email, self.account_data.password, "unlogged")
+                    await self.handle_invalid_account(self.account_data.email, self.account_data.email_password, "unlogged")
                     return None
 
                 api = DawnExtensionAPI(
@@ -335,7 +335,7 @@ class Bot:
             except Exception as error:
                 if "Proxy Authentication Required" in str(error) and config.application_settings.disable_auto_proxy_change:
                     logger.error(f"Account: {self.account_data.email} | Proxy authentication failed | Account deleted from farming")
-                    await self.handle_invalid_account(self.account_data.email, self.account_data.password, "invalid_proxy", invalid_proxy=api.proxy)
+                    await self.handle_invalid_account(self.account_data.email, self.account_data.email_password, "invalid_proxy", invalid_proxy=api.proxy)
                     return None
 
                 is_last_attempt = attempt == max_attempts - 1
