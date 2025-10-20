@@ -202,9 +202,19 @@ class Bot:
                 return operation_success(self.account_data.email, self.account_data.email_password)
 
             except APIError as error:
+                is_last_attempt = attempt == max_attempts - 1
+                if is_last_attempt:
+                    logger.error(f"Account: {self.account_data.email} | Max attempts reached, unable to login | Last error: {error} | Skipped permanently")
+                    return operation_failed(self.account_data.email, self.account_data.email_password)
+
                 if error.error_type == APIErrorType.INVALID_CREDENTIALS:
                     logger.error(f"Account: {self.account_data.email} | Invalid confirmation code | Retrying in {config.attempts_and_delay_settings.error_delay}s | Attempt: {attempt + 1}/{max_attempts}")
                     await asyncio.sleep(config.attempts_and_delay_settings.error_delay)
+                    continue
+
+                elif error.error_type == APIErrorType.TOO_MANY_USERS_FROM_THIS_IP:
+                    logger.error(f"Account: {self.account_data.email} | Too many users from this IP | Proxy banned | Changing proxy and retrying..")
+                    await self._update_account_proxy(db_account_value, attempt)
                     continue
 
                 logger.error(f"Account: {self.account_data.email} | Error occurred during login (APIError): {error} | Skipped permanently")
@@ -276,6 +286,11 @@ class Bot:
 
                     return operation_failed(self.account_data.email, self.account_data.email_password, data={})
 
+                elif error.error_type == APIErrorType.TOO_MANY_USERS_FROM_THIS_IP:
+                    logger.error(f"Account: {self.account_data.email} | Too many users from this IP | Proxy banned | Changing proxy and retrying..")
+                    await self._update_account_proxy(db_account_value, attempt)
+                    continue
+
                 logger.error(f"Account: {self.account_data.email} | Error occurred during stats retrieval (APIError): {error} | Skipped permanently")
                 return operation_failed(self.account_data.email, self.account_data.email_password, data={})
 
@@ -328,6 +343,17 @@ class Bot:
                 await self._set_next_sleep_until(db_account_value)
 
             except APIError as error:
+                is_last_attempt = attempt == max_attempts - 1
+                if is_last_attempt:
+                    logger.error(f"Account: {self.account_data.email} | Max attempts reached, unable to send ping | Last error: {error} | Skipped until next cycle")
+                    await self._set_next_sleep_until(db_account_value)
+                    return None
+
+                if error.error_type == APIErrorType.TOO_MANY_USERS_FROM_THIS_IP:
+                    logger.error(f"Account: {self.account_data.email} | Too many users from this IP | Proxy banned | Changing proxy and retrying..")
+                    await self._update_account_proxy(db_account_value, attempt)
+                    continue
+
                 logger.error(f"Account: {self.account_data.email} | Error occurred during sending ping (APIError): {error} | Skipped until next cycle")
                 await self._set_next_sleep_until(db_account_value)
                 return None
