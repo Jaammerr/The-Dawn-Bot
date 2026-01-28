@@ -1,7 +1,8 @@
+from typing import Optional, Union
 from models import OperationResult
 
 
-def operation_failed(email: str, email_password: str, data: dict | str | None = None) -> OperationResult:
+def operation_failed(email: str, email_password: str, data: Optional[Union[dict, str]] = None) -> OperationResult:
     return OperationResult(
         email=email,
         email_password=email_password,
@@ -10,7 +11,7 @@ def operation_failed(email: str, email_password: str, data: dict | str | None = 
     )
 
 
-def operation_success(email: str, email_password: str, data: dict | str | None = None) -> OperationResult:
+def operation_success(email: str, email_password: str, data: Optional[Union[dict, str]] = None) -> OperationResult:
     return OperationResult(
         email=email,
         email_password=email_password,

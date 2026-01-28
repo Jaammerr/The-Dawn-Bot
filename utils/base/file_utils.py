@@ -3,6 +3,7 @@ import time
 import aiofiles
 
 from pathlib import Path
+from typing import Dict, Optional
 from loguru import logger
 
 from openpyxl.reader.excel import load_workbook
@@ -18,7 +19,7 @@ class FileOperations:
     def __init__(self, base_path: str = "./results"):
         self.base_path = Path(base_path)
         self.lock = asyncio.Lock()
-        self.module_paths: dict[ModuleType, dict[str, Path]] = {
+        self.module_paths: Dict[ModuleType, Dict[str, Path]] = {
             "tasks": {
                 "success": self.base_path / "tasks" / "tasks_success.txt",
                 "failed": self.base_path / "tasks" / "tasks_failed.txt",
@@ -108,7 +109,7 @@ class FileOperations:
                 logger.error(f"Account: {result['email']} | Error writing to file: {e}")
 
 
-    async def export_invalid_account(self, email: str, password: str | None, reason: str):
+    async def export_invalid_account(self, email: str, password: Optional[str], reason: str):
         if reason not in self.module_paths["accounts"]:
             raise ValueError(f"Unknown reason: {reason}")
 
@@ -126,7 +127,7 @@ class FileOperations:
                 logger.error(f"Account: {email} | Error writing to file: {e}")
 
 
-    async def export_invalid_proxy_account(self, email: str, password: str | None, proxy: str):
+    async def export_invalid_proxy_account(self, email: str, password: Optional[str], proxy: str):
         if "invalid_proxy" not in self.module_paths["accounts"]:
             raise ValueError("Invalid proxy path not found in module paths")
 

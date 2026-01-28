@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Optional
 
 
 class APIErrorType(Enum):
@@ -8,6 +9,7 @@ class APIErrorType(Enum):
     PING_INTERVAL_VIOLATION = "Ping interval violation"
     DOMAIN_LIMIT_EXCEEDED = "Custom domain user limit exceeded"
     TOO_MANY_USERS_FROM_THIS_IP = "Too many users from this IP"
+    TOO_MANY_REQUESTS = "Too many requests. Please wait to try again."
 
 
 class APIError(Exception):
@@ -17,7 +19,7 @@ class APIError(Exception):
         self.error_type = self._get_error_type()
         super().__init__(error)
 
-    def _get_error_type(self) -> APIErrorType | None:
+    def _get_error_type(self) -> Optional[APIErrorType]:
         return next(
             (error_type for error_type in APIErrorType if error_type.value == self.error_message),
             None

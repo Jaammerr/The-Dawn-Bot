@@ -5,8 +5,8 @@
 
 application_settings:
   threads: 5
-  ping_interval: 600 # seconds
-  database_url: "sqlite://database/database.sqlite3" # SQlite or postgres, e.g. sqlite://database.db or postgres://user:password@localhost/dbname
+  ping_interval: 1200 # seconds (matches official Dawn extension v3.0.9)
+  database_url: "sqlite://database.db" # SQlite or postgres, e.g. sqlite://database.db or postgres://user:password@localhost/dbname
   skip_logged_accounts: true
   shuffle_accounts: true
   check_uniqueness_of_proxies: true
@@ -15,20 +15,20 @@ application_settings:
 
 attempts_and_delay_settings:
   delay_before_start:
-    min: 0 # seconds
-    max: 0 # seconds
+    min: 30 # seconds
+    max: 60 # seconds
 
-  error_delay: 5 # seconds
-  max_login_attempts: 5
+  error_delay: 60 # seconds
+  max_login_attempts: 10
   max_stats_attempts: 3
   max_farm_attempts: 3
 
 
 redirect_settings:
   enabled: false
-  email: ""
-  password: ""
-  imap_server: ""
+  email: "your_redirect_email@gmail.com"
+  password: "your_app_password"
+  imap_server: "imap.gmail.com"
   use_proxy: false
 
 
@@ -52,3 +52,8 @@ imap_settings:
     op.pl: imap.poczta.onet.pl
     onet.eu: imap.poczta.onet.pl
     gazeta.pl: imap.gazeta.pl
+
+
+capsolver_settings:
+  enabled: true
+  api_key: "YOUR_CAPSOLVER_API_KEY"  # Get your API key from capsolver.com

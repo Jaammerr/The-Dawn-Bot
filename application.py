@@ -5,7 +5,7 @@ from typing import List, Any, Set, Optional, Callable, Coroutine
 from loguru import logger
 
 from core.modules.executor import ModuleExecutor
-from loader import config, file_operations, semaphore, proxy_manager
+from loader import config, file_operations, proxy_manager
 from models import Account
 from utils import Progress
 from console import Console
@@ -15,9 +15,11 @@ from database import initialize_database, Accounts
 class ApplicationManager:
     def __init__(self):
         self.accounts_with_initial_delay: Set[str] = set()
+        self.semaphore: Optional[asyncio.Semaphore] = None
         self.module_map = {
             "login": (config.accounts_to_login, self._execute_module_for_accounts),
             "farm": (config.accounts_to_farm, self._farm_continuously),
+            "social_rewards": (config.accounts_to_farm, self._execute_module_for_accounts),
             # "complete_tasks": (config.accounts_to_complete_tasks, self._execute_module_for_accounts),
             "export_stats": (config.accounts_to_export_stats, self._execute_module_for_accounts),
         }
@@ -52,7 +54,7 @@ class ApplicationManager:
             self, account: Account, module_func: Callable, progress: Progress
     ) -> Optional[dict]:
         try:
-            async with semaphore:
+            async with self.semaphore:
                 if (
                     config.attempts_and_delay_settings.delay_before_start.min > 0
                     and config.attempts_and_delay_settings.delay_before_start.max > 0
@@ -113,6 +115,7 @@ class ApplicationManager:
             logger.error(f"Error while clearing accounts proxies: {str(e)}")
 
     async def run(self) -> None:
+        self.semaphore = asyncio.Semaphore(config.application_settings.threads)
         await self.initialize()
 
         while True:

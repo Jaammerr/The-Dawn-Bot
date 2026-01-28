@@ -2,7 +2,7 @@ import asyncio
 import pytz
 
 from datetime import datetime, timedelta
-from typing import Optional, Literal
+from typing import Optional, Literal, Union
 from better_proxy import Proxy
 from loguru import logger
 
@@ -10,6 +10,7 @@ from loader import config, file_operations, proxy_manager
 from models import Account, OperationResult
 
 from core.api.dawn import DawnExtensionAPI
+from core.api.captcha import CaptchaSolver
 from utils import EmailValidator, LinkExtractor, operation_failed, operation_success, validate_error, handle_sleep
 from database import Accounts
 from core.exceptions.base import APIError, APIErrorType, EmailValidationFailed
@@ -49,6 +50,9 @@ class Bot:
 
     async def _validate_email(self, proxy: str = None) -> dict:
         proxy = Proxy.from_str(proxy) if proxy else None
+
+        if config.redirect_settings.enabled:
+            return {"status": True, "data": "Skipped validation for redirect"}
 
         if config.redirect_settings.enabled:
             result = await EmailValidator(
@@ -92,7 +96,7 @@ class Bot:
 
         return confirm_url
 
-    async def _update_account_proxy(self, account_data: Accounts, attempt: int | str) -> None:
+    async def _update_account_proxy(self, account_data: Accounts, attempt: Union[int, str]) -> None:
         max_attempts = config.attempts_and_delay_settings.max_login_attempts \
             if config.module == "login" \
             else config.attempts_and_delay_settings.max_tasks_attempts \
@@ -136,11 +140,12 @@ class Bot:
 
         return confirm_url["data"]
 
-    async def process_login(self, check_if_account_logged_in: bool = True) -> OperationResult | None:
+    async def process_login(self, check_if_account_logged_in: bool = True) -> Optional[OperationResult]:
         max_attempts = config.attempts_and_delay_settings.max_login_attempts
 
         for attempt in range(max_attempts):
             db_account_value = None
+            proxy = None
             api = None
 
             try:
@@ -151,8 +156,8 @@ class Bot:
                         db_account_value.privy_auth_token,
                         db_account_value.session_token,
                     ]):
-                        logger.success(f"Account: {self.account_data.email} | Account already logged in, skipped")
-                        return operation_failed(self.account_data.email, self.account_data.email_password)
+                        logger.info(f"Account: {self.account_data.email} | Already logged in | Skipped")
+                        return None
 
                 proxy = await self._prepare_proxy() if not db_account_value or not db_account_value.active_account_proxy else db_account_value.active_account_proxy
                 api = DawnExtensionAPI(proxy=proxy)
@@ -160,8 +165,19 @@ class Bot:
                 if not await self._is_email_valid(proxy=proxy):
                     return operation_failed(self.account_data.email, self.account_data.email_password)
 
+                # Solve captcha if CapSolver is configured
+                captcha_token = ''
+                if config.capsolver_settings and config.capsolver_settings.enabled and config.capsolver_settings.api_key:
+                    logger.info(f"Account: {self.account_data.email} | Solving Turnstile captcha...")
+                    solver = CaptchaSolver(api_key=config.capsolver_settings.api_key)
+                    captcha_token = await solver.solve_turnstile(proxy=proxy)
+                    if not captcha_token:
+                        logger.error(f"Account: {self.account_data.email} | Failed to solve captcha | Retrying...")
+                        await self._update_account_proxy(db_account_value, attempt)
+                        continue
+
                 logger.info(f"Account: {self.account_data.email} | Initiating authentication..")
-                await api.init_auth(self.account_data.email)
+                await api.init_auth(self.account_data.email, captcha_token=captcha_token)
                 logger.success(f"Account: {self.account_data.email} | Authentication initiated, confirmation code sent to email")
 
                 code = await self._get_confirmation_code()
@@ -195,7 +211,7 @@ class Bot:
                     privy_auth_token=privy_auth_token,
                     extension_token=extension_token,
                     refresh_token=refresh_token,
-                    proxy=proxy
+                    active_account_proxy=proxy
                 )
 
                 logger.success(f"Account: {self.account_data.email} | Account logged in | Session saved to database")
@@ -217,6 +233,11 @@ class Bot:
                     await self._update_account_proxy(db_account_value, attempt)
                     continue
 
+                elif error.error_type == APIErrorType.TOO_MANY_REQUESTS:
+                    logger.warning(f"Account: {self.account_data.email} | Rate limited (too many requests) | Changing proxy and retrying..")
+                    await self._update_account_proxy(db_account_value, attempt)
+                    continue
+
                 logger.error(f"Account: {self.account_data.email} | Error occurred during login (APIError): {error} | Skipped permanently")
                 return operation_failed(self.account_data.email, self.account_data.email_password)
 
@@ -234,7 +255,7 @@ class Bot:
                 if api:
                     await api.close_session()
 
-    async def process_export_stats(self) -> OperationResult | None:
+    async def process_export_stats(self) -> Optional[OperationResult]:
         max_attempts = config.attempts_and_delay_settings.max_stats_attempts
 
         for attempt in range(max_attempts):
@@ -288,6 +309,11 @@ class Bot:
 
                 elif error.error_type == APIErrorType.TOO_MANY_USERS_FROM_THIS_IP:
                     logger.error(f"Account: {self.account_data.email} | Too many users from this IP | Proxy banned | Changing proxy and retrying..")
+                    await self._update_account_proxy(db_account_value, attempt)
+                    continue
+
+                elif error.error_type == APIErrorType.TOO_MANY_REQUESTS:
+                    logger.warning(f"Account: {self.account_data.email} | Rate limited (too many requests) | Changing proxy and retrying..")
                     await self._update_account_proxy(db_account_value, attempt)
                     continue
 
@@ -354,6 +380,11 @@ class Bot:
                     await self._update_account_proxy(db_account_value, attempt)
                     continue
 
+                elif error.error_type == APIErrorType.TOO_MANY_REQUESTS:
+                    logger.warning(f"Account: {self.account_data.email} | Rate limited (too many requests) | Changing proxy and retrying..")
+                    await self._update_account_proxy(db_account_value, attempt)
+                    continue
+
                 logger.error(f"Account: {self.account_data.email} | Error occurred during sending ping (APIError): {error} | Skipped until next cycle")
                 await self._set_next_sleep_until(db_account_value)
                 return None
@@ -377,3 +408,89 @@ class Bot:
             finally:
                 if api:
                     await api.close_session()
+
+    async def process_social_rewards(self) -> Optional[OperationResult]:
+        """Automatically claim all available social rewards (+5000 points each)"""
+        max_attempts = config.attempts_and_delay_settings.max_tasks_attempts
+        platforms = ["twitter", "discord", "telegram"]
+
+        for attempt in range(max_attempts):
+            db_account_value = None
+            api = None
+
+            try:
+                db_account_value = await Accounts.get_account(email=self.account_data.email)
+                if not db_account_value or not all([
+                    db_account_value.extension_token,
+                    db_account_value.privy_auth_token,
+                    db_account_value.session_token,
+                ]):
+                    await self.handle_invalid_account(self.account_data.email, self.account_data.email_password, "unlogged")
+                    return None
+
+                api = DawnExtensionAPI(
+                    privy_auth_token=db_account_value.privy_auth_token,
+                    extension_token=db_account_value.extension_token,
+                    session_token=db_account_value.session_token,
+                    proxy=db_account_value.active_account_proxy
+                )
+
+                logger.info(f"Account: {self.account_data.email} | Checking social rewards status...")
+                
+                # Get already claimed platforms
+                try:
+                    claims_response = await api.get_social_claims()
+                    claimed_platforms = [c.get('platform') for c in claims_response.get('claims', [])]
+                except Exception:
+                    claimed_platforms = []
+
+                # Claim unclaimed platforms
+                claimed = []
+                for platform in platforms:
+                    if platform not in claimed_platforms:
+                        try:
+                            await api.claim_social_reward(platform)
+                            claimed.append(platform)
+                            logger.success(f"Account: {self.account_data.email} | Claimed {platform} reward (+5000 points)")
+                            await asyncio.sleep(2)  # Small delay between claims
+                        except APIError as e:
+                            if "already claimed" in str(e).lower():
+                                logger.info(f"Account: {self.account_data.email} | {platform} already claimed")
+                            else:
+                                logger.warning(f"Account: {self.account_data.email} | Failed to claim {platform}: {e}")
+
+                if claimed:
+                    logger.success(f"Account: {self.account_data.email} | Social rewards claimed: {', '.join(claimed)} (+{len(claimed) * 5000} points)")
+                else:
+                    logger.info(f"Account: {self.account_data.email} | All social rewards already claimed")
+
+                return operation_success(self.account_data.email, data={"claimed": claimed})
+
+            except APIError as error:
+                is_last_attempt = attempt == max_attempts - 1
+                if is_last_attempt:
+                    logger.error(f"Account: {self.account_data.email} | Max attempts reached for social rewards | Last error: {error}")
+                    return operation_failed(self.account_data.email, data=str(error))
+
+                if error.error_type == APIErrorType.TOO_MANY_REQUESTS:
+                    logger.warning(f"Account: {self.account_data.email} | Rate limited | Changing proxy and retrying...")
+                    await self._update_account_proxy(db_account_value, attempt)
+                    continue
+
+                logger.error(f"Account: {self.account_data.email} | Error claiming social rewards: {error}")
+                return operation_failed(self.account_data.email, data=str(error))
+
+            except Exception as error:
+                is_last_attempt = attempt == max_attempts - 1
+                if is_last_attempt:
+                    logger.error(f"Account: {self.account_data.email} | Max attempts reached for social rewards | Last error: {error}")
+                    return operation_failed(self.account_data.email, data=str(error))
+
+                error = validate_error(error)
+                logger.error(f"Account: {self.account_data.email} | Error claiming social rewards: {error}")
+                await self._update_account_proxy(db_account_value, attempt)
+
+            finally:
+                if api:
+                    await api.close_session()
+

@@ -3,7 +3,7 @@ import json
 import uuid
 
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Literal, Union, Optional
 
 from curl_cffi.requests import AsyncSession, Response
 from utils.processing.handlers import require_extension_token, require_session_token, require_privy_auth_token
@@ -18,13 +18,16 @@ class APIClient:
         self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
     def _create_session(self) -> AsyncSession:
-        session = AsyncSession(impersonate="chrome131", verify=False)
+        # "chrome110" + verify=False is the most robust combo for Linux servers with old OpenSSL
+        session = AsyncSession(impersonate="chrome110", verify=False)
         session.timeout = 30
 
-        if self.proxy:
+        # Convert socks5 to socks5h for remote DNS (fixes SSL with SOCKS proxies)
+        proxy_url = self.proxy.replace("socks5://", "socks5h://") if self.proxy and self.proxy.startswith("socks5://") else self.proxy
+        if proxy_url:
             session.proxies = {
-                "http": self.proxy,
-                "https": self.proxy,
+                "http": proxy_url,
+                "https": proxy_url,
             }
 
         return session
@@ -35,7 +38,7 @@ class APIClient:
         return await session.get(url, allow_redirects=True, verify=False)
 
     @staticmethod
-    async def _verify_response(response_data: dict | list):
+    async def _verify_response(response_data: Union[dict, list]):
         if isinstance(response_data, dict):
             if "status" in str(response_data):
                 if response_data.get("status") is False:
@@ -74,7 +77,7 @@ class APIClient:
         params: dict = None,
         headers: dict = None,
         cookies: dict = None,
-        verify: bool = True,
+        verify: bool = False,
         return_full_response: bool = False,
         max_retries: int = 2,
         retry_delay: float = 3.0,
@@ -88,12 +91,14 @@ class APIClient:
                         params=params,
                         headers=headers if headers else self.session.headers,
                         cookies=cookies,
+                        verify=False,
                     )
                 elif request_type == "OPTIONS":
                     response = await self.session.options(
                         url,
                         headers=headers if headers else self.session.headers,
                         cookies=cookies,
+                        verify=False,
                     )
                 else:
                     response = await self.session.get(
@@ -101,6 +106,7 @@ class APIClient:
                         params=params,
                         headers=headers if headers else self.session.headers,
                         cookies=cookies,
+                        verify=False,
                     )
 
                 if verify:
@@ -156,11 +162,11 @@ class DawnExtensionAPI(APIClient):
         self.session_token = session_token
         self.extension_token = extension_token
 
-    async def init_auth(self, email: str) -> dict:
+    async def init_auth(self, email: str, captcha_token: str = '') -> dict:
         headers = {
             'Host': 'auth.privy.io',
             'Connection': 'keep-alive',
-            'privy-client': 'react-auth:2.24.0',
+            'privy-client': 'react-auth:3.10.0',
             'privy-ui': 't',
             'privy-app-id': 'cmfb724md0057la0bs4tg0vf1',
             'User-Agent': self.user_agent,
@@ -173,6 +179,7 @@ class DawnExtensionAPI(APIClient):
 
         json_data = {
             'email': email,
+            'token': captcha_token,
         }
 
         return await self.send_request(
@@ -180,13 +187,14 @@ class DawnExtensionAPI(APIClient):
             request_type='POST',
             json_data=json_data,
             headers=headers,
+            verify=True,
         )
 
     async def authenticate(self, email: str, code: str) -> dict:
         headers = {
             'Host': 'auth.privy.io',
             'Connection': 'keep-alive',
-            'privy-client': 'react-auth:2.24.0',
+            'privy-client': 'react-auth:3.10.0',
             'privy-app-id': 'cmfb724md0057la0bs4tg0vf1',
             'User-Agent': self.user_agent,
             'accept': 'application/json',
@@ -207,6 +215,7 @@ class DawnExtensionAPI(APIClient):
             request_type='POST',
             json_data=json_data,
             headers=headers,
+            verify=True,
         )
 
 
@@ -232,6 +241,7 @@ class DawnExtensionAPI(APIClient):
             request_type='GET',
             headers=headers,
             params=params,
+            verify=True,
         )
 
         return response
@@ -259,6 +269,7 @@ class DawnExtensionAPI(APIClient):
             request_type='GET',
             headers=headers,
             params=params,
+            verify=True,
         )
 
 
@@ -294,6 +305,7 @@ class DawnExtensionAPI(APIClient):
             headers=headers,
             params=params,
             json_data=json_data,
+            verify=True,
         )
 
         if response["message"] != "pong":
@@ -325,6 +337,7 @@ class DawnExtensionAPI(APIClient):
             request_type='POST',
             headers=headers,
             json_data=json_data,
+            verify=True,
         )
 
 
@@ -344,6 +357,7 @@ class DawnExtensionAPI(APIClient):
             url='https://api.dawninternet.com/referral/my-code',
             request_type='GET',
             headers=headers,
+            verify=True,
         )
 
 
@@ -363,6 +377,7 @@ class DawnExtensionAPI(APIClient):
             url='https://api.dawninternet.com/referral/stats',
             request_type='GET',
             headers=headers,
+            verify=True,
         )
 
 
@@ -372,7 +387,7 @@ class DawnExtensionAPI(APIClient):
             'Host': 'auth.privy.io',
             'Connection': 'keep-alive',
             'authorization': f'Bearer {self.privy_auth_token}',
-            'privy-client': 'react-auth:2.24.0',
+            'privy-client': 'react-auth:3.10.0',
             'privy-app-id': 'cmfb724md0057la0bs4tg0vf1',
             'User-Agent': self.user_agent,
             'accept': 'application/json',
@@ -391,4 +406,54 @@ class DawnExtensionAPI(APIClient):
             request_type='POST',
             json_data=json_data,
             headers=headers,
+            verify=True,
         )
+
+
+    @require_extension_token
+    async def get_social_claims(self) -> dict:
+        """Get list of completed social tasks"""
+        headers = {
+            'Host': 'api.dawninternet.com',
+            'Connection': 'keep-alive',
+            'Authorization': f'Bearer {self.extension_token}',
+            'User-Agent': self.user_agent,
+            'Accept': '*/*',
+            'Origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+        }
+
+        return await self.send_request(
+            url='https://api.dawninternet.com/social/claims',
+            request_type='GET',
+            headers=headers,
+            verify=True,
+        )
+
+
+    @require_extension_token
+    async def claim_social_reward(self, platform: str) -> dict:
+        """Claim social reward for a platform (twitter, discord, telegram)"""
+        headers = {
+            'Host': 'api.dawninternet.com',
+            'Connection': 'keep-alive',
+            'Authorization': f'Bearer {self.extension_token}',
+            'User-Agent': self.user_agent,
+            'Accept': '*/*',
+            'Origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Content-Type': 'application/json',
+        }
+
+        json_data = {
+            'platform': platform,
+        }
+
+        return await self.send_request(
+            url='https://api.dawninternet.com/social/claim',
+            request_type='POST',
+            headers=headers,
+            json_data=json_data,
+            verify=True,
+        )
+

@@ -1,3 +1,4 @@
+from typing import Optional
 from core.bot.base import Bot
 from loader import file_operations
 from models import Account, OperationResult
@@ -25,3 +26,9 @@ class ModuleExecutor:
 
     async def _process_farm(self) -> None:
         await self.bot.process_farm()
+
+    async def _process_social_rewards(self) -> None:
+        operation_result = await self.bot.process_social_rewards()
+        if isinstance(operation_result, dict):
+            await file_operations.export_result(operation_result, "social_rewards")
+
