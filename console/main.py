@@ -20,6 +20,7 @@ class Console:
     MODULES = (
         "🆕 Register & Login accounts",
         "🌾 Farm accounts",
+        "🎁 Claim Social Rewards",
         # "✅ Complete tasks",
         "📊 Export accounts statistics",
         "",
@@ -29,6 +30,7 @@ class Console:
     MODULES_DATA = {
         "🆕 Register & Login accounts": "login",
         "🌾 Farm accounts": "farm",
+        "🎁 Claim Social Rewards": "social_rewards",
         "📊 Export accounts statistics": "export_stats",
         "✅ Complete tasks": "complete_tasks",
         "🧹 Clean accounts proxies": "clean_accounts_proxies",

@@ -67,6 +67,12 @@ class ApplicationSettings:
     disable_auto_proxy_change: bool
 
 
+@dataclass
+class CapsolverSettings:
+    enabled: bool = False
+    api_key: str = ""
+
+
 class Config(BaseConfig):
     accounts_to_farm: list[Account] = Field(default_factory=list)
     accounts_to_login: list[Account] = Field(default_factory=list)
@@ -80,5 +86,6 @@ class Config(BaseConfig):
     attempts_and_delay_settings: AttemptsAndDelaySettings
     redirect_settings: RedirectConfig
     imap_settings: IMAPSettings
+    capsolver_settings: CapsolverSettings = None
 
     module: str = ""

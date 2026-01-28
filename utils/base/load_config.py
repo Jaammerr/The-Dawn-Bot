@@ -130,12 +130,12 @@ class ConfigLoader:
         return accounts
 
     @staticmethod
-    def _assign_imap_server(accounts: list[Account], server: str):
+    def _assign_imap_server(accounts: List[Account], server: str):
         if accounts:
             for account in accounts:
                 account.imap_server = server
 
-    def load(self) -> Config | None:
+    def load(self) -> Optional[Config]:
         try:
             params = self._load_yaml()
             proxies = self._parse_proxies()

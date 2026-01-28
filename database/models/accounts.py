@@ -2,6 +2,7 @@ import asyncio
 import pytz
 
 from datetime import datetime
+from typing import Optional, List, Tuple, Union
 from tortoise import Model, fields
 
 
@@ -34,7 +35,7 @@ class Accounts(Model):
         return await cls.all()
 
     @classmethod
-    async def get_accounts_stats(cls, emails: list[str] | None = None) -> tuple[int, int]:
+    async def get_accounts_stats(cls, emails: Optional[List[str]] = None) -> Tuple[int, int]:
         query = cls.all()
         if emails:
             query = query.filter(email__in=emails)
@@ -56,7 +57,7 @@ class Accounts(Model):
 
     # ===== Proxy helpers =====
 
-    async def update_account_proxy(self, proxy: str | None):
+    async def update_account_proxy(self, proxy: Optional[str]):
         self.active_account_proxy = proxy
         await self.save(update_fields=["active_account_proxy"])
 
@@ -71,14 +72,14 @@ class Accounts(Model):
     async def create_or_update_account(
         cls,
         email: str,
-        email_password: str | None = None,
-        user_id: str | None = None,
-        referral_code: str | None = None,
-        session_token: str | None = None,
-        privy_auth_token: str | None = None,
-        extension_token: str | None = None,
-        refresh_token: str | None = None,
-        proxy: str | None = None,
+        email_password: Optional[str] = None,
+        user_id: Optional[str] = None,
+        referral_code: Optional[str] = None,
+        session_token: Optional[str] = None,
+        privy_auth_token: Optional[str] = None,
+        extension_token: Optional[str] = None,
+        refresh_token: Optional[str] = None,
+        active_account_proxy: Optional[str] = None,
     ) -> "Accounts":
         account = await cls.get_account(email=email)
 
@@ -92,7 +93,7 @@ class Accounts(Model):
                 privy_auth_token=privy_auth_token,
                 extension_token=extension_token,
                 refresh_token=refresh_token,
-                active_account_proxy=proxy,
+                active_account_proxy=active_account_proxy,
             )
             return account
 
@@ -120,8 +121,8 @@ class Accounts(Model):
         if refresh_token is not None:
             account.refresh_token = refresh_token
             update_fields.append("refresh_token")
-        if proxy is not None:
-            account.active_account_proxy = proxy
+        if active_account_proxy is not None:
+            account.active_account_proxy = active_account_proxy
             update_fields.append("active_account_proxy")
 
         if update_fields:
@@ -131,14 +132,14 @@ class Accounts(Model):
 
     async def update_account(
         self,
-        email_password: str | None = None,
-        user_id: str | None = None,
-        referral_code: str | None = None,
-        session_token: str | None = None,
-        privy_auth_token: str | None = None,
-        extension_token: str | None = None,
-        refresh_token: str | None = None,
-        proxy: str | None = None,
+        email_password: Optional[str] = None,
+        user_id: Optional[str] = None,
+        referral_code: Optional[str] = None,
+        session_token: Optional[str] = None,
+        privy_auth_token: Optional[str] = None,
+        extension_token: Optional[str] = None,
+        refresh_token: Optional[str] = None,
+        proxy: Optional[str] = None,
     ) -> "Accounts":
         update_fields: list[str] = []
 
@@ -175,32 +176,32 @@ class Accounts(Model):
     # ===== Token & meta getters =====
 
     @classmethod
-    async def get_user_id(cls, email: str) -> str | None:
+    async def get_user_id(cls, email: str) -> Optional[str]:
         acc = await cls.get_account(email=email)
         return acc.user_id if acc else None
 
     @classmethod
-    async def get_referral_code(cls, email: str) -> str | None:
+    async def get_referral_code(cls, email: str) -> Optional[str]:
         acc = await cls.get_account(email=email)
         return acc.referral_code if acc else None
 
     @classmethod
-    async def get_session_token(cls, email: str) -> str | None:
+    async def get_session_token(cls, email: str) -> Optional[str]:
         acc = await cls.get_account(email=email)
         return acc.session_token if acc else None
 
     @classmethod
-    async def get_privy_auth_token(cls, email: str) -> str | None:
+    async def get_privy_auth_token(cls, email: str) -> Optional[str]:
         acc = await cls.get_account(email=email)
         return acc.privy_auth_token if acc else None
 
     @classmethod
-    async def get_extension_token(cls, email: str) -> str | None:
+    async def get_extension_token(cls, email: str) -> Optional[str]:
         acc = await cls.get_account(email=email)
         return acc.extension_token if acc else None
 
     @classmethod
-    async def get_refresh_token(cls, email: str) -> str | None:
+    async def get_refresh_token(cls, email: str) -> Optional[str]:
         acc = await cls.get_account(email=email)
         return acc.refresh_token if acc else None
 

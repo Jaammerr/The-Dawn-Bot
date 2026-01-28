@@ -29,14 +29,13 @@ No payments, no hidden fees — just download and start automating.
 
 Detailed step-by-step instructions to help you install and use **The Dawn Bot** effectively.
 
-
-
 ---
 
 ## 🧩 Modules
 
-- Register & Login accounts 
+- Register & Login accounts
 - Farm accounts  
+- **Claim Social Rewards** (Twitter, Discord, Telegram)
 - Complete tasks (will be added as soon as devs fix them)
 - Export accounts statistics  
 - Clean accounts proxies
@@ -49,5 +48,6 @@ Detailed step-by-step instructions to help you install and use **The Dawn Bot** 
 - Stable internet connection
 - Valid email accounts
 - Working proxies (HTTP/SOCKS5)
+- **CapSolver API Key** (Required for Cloudflare Turnstile captcha)
 
 ---

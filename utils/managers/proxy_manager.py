@@ -2,6 +2,7 @@ import asyncio
 import os
 
 from collections import deque
+from typing import List, Optional, Union
 from better_proxy import Proxy
 from loguru import logger
 
@@ -15,10 +16,10 @@ class ProxyManager:
         self.lock = asyncio.Lock()
         self.active_proxies = set()
 
-    def load_proxy(self, proxies: list[str]) -> None:
+    def load_proxy(self, proxies: List[str]) -> None:
         self.proxies = deque([Proxy.from_str(proxy) for proxy in proxies])
 
-    async def get_proxy(self) -> Proxy | None:
+    async def get_proxy(self) -> Optional[Proxy]:
         async with self.lock:
             while True:
                 if self.proxies:
@@ -41,13 +42,13 @@ class ProxyManager:
                     except SystemExit:
                         os._exit(0)
 
-    async def release_proxy(self, proxy: Proxy | str) -> None:
+    async def release_proxy(self, proxy: Union[Proxy, str]) -> None:
         async with self.lock:
             self.proxies.append(proxy)
             if proxy in self.active_proxies:
                 self.active_proxies.remove(proxy)
 
-    async def remove_proxy(self, proxy: Proxy | str) -> bool:
+    async def remove_proxy(self, proxy: Union[Proxy, str]) -> bool:
         async with self.lock:
             try:
                 self.proxies.remove(proxy)

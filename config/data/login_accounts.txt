@@ -1,0 +1,4 @@
+# Add your accounts here in format: email:password
+# Example:
+# your_email@gmail.com:your_password
+# another@icloud.com:password123

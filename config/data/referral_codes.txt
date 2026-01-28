@@ -1,1 +1,3 @@
-hegbhf
+# Add your referral codes here, one per line
+# Example:
+# abc123def
