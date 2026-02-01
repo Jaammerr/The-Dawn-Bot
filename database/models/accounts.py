@@ -1,8 +1,11 @@
 import asyncio
+import random
+
 import pytz
 
 from datetime import datetime
 from tortoise import Model, fields
+from tortoise.expressions import Q
 
 
 class Accounts(Model):
@@ -204,6 +207,14 @@ class Accounts(Model):
         acc = await cls.get_account(email=email)
         return acc.refresh_token if acc else None
 
+    @classmethod
+    async def get_random_referral_code(cls) -> str | None:
+        invite_codes = await cls.filter(~Q(referral_code=None)).values_list(
+            "referral_code", flat=True
+        )
+        invite_codes = [c for c in invite_codes if c]
+        return random.choice(invite_codes) if invite_codes else None
+
     # ===== Delete =====
 
     @classmethod
@@ -232,15 +243,6 @@ class Accounts(Model):
     # ===== Bulk ops =====
 
     @classmethod
-    async def clear_all_accounts_proxies(cls, concurrency: int = 200) -> int:
-        accounts = await cls.all()
-        sem = asyncio.Semaphore(concurrency)
-
-        async def clear_proxy(acc: "Accounts"):
-            async with sem:
-                if acc.active_account_proxy:
-                    acc.active_account_proxy = None
-                    await acc.save(update_fields=["active_account_proxy"])
-
-        await asyncio.gather(*(clear_proxy(a) for a in accounts))
-        return len(accounts)
+    async def clear_all_accounts_proxies(cls) -> int:
+        affected = await cls.all().update(active_account_proxy=None)
+        return affected

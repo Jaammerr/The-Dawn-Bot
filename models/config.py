@@ -38,8 +38,9 @@ class AttemptsAndDelaySettings:
 
     max_login_attempts: PositiveInt
     max_stats_attempts: PositiveInt
-    # max_tasks_attempts: PositiveInt
+    max_tasks_attempts: PositiveInt
     max_farm_attempts: PositiveInt
+    max_captcha_attempts: PositiveInt
 
 
 @dataclass
@@ -65,13 +66,24 @@ class ApplicationSettings:
     shuffle_accounts: bool
     check_uniqueness_of_proxies: bool
     disable_auto_proxy_change: bool
+    use_random_ref_codes_from_db: bool
+
+
+@dataclass
+class CaptchaSettings:
+    captcha_service: str = ""
+    max_captcha_solving_time: PositiveInt = 180
+
+    capsolver_api_key: str = ""
+    anti_captcha_api_key: str = ""
+    two_captcha_api_key: str = ""
 
 
 class Config(BaseConfig):
     accounts_to_farm: list[Account] = Field(default_factory=list)
     accounts_to_login: list[Account] = Field(default_factory=list)
     accounts_to_export_stats: list[Account] = Field(default_factory=list)
-    # accounts_to_complete_tasks: list[Account] = Field(default_factory=list)
+    accounts_to_complete_tasks: list[Account] = Field(default_factory=list)
 
     referral_codes: list[str] = Field(default_factory=list)
     proxies: list[str] = Field(default_factory=list)
@@ -80,5 +92,6 @@ class Config(BaseConfig):
     attempts_and_delay_settings: AttemptsAndDelaySettings
     redirect_settings: RedirectConfig
     imap_settings: IMAPSettings
+    captcha_settings: CaptchaSettings
 
     module: str = ""

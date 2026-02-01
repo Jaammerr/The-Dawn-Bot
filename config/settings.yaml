@@ -4,24 +4,36 @@
 
 
 application_settings:
-  threads: 5
-  ping_interval: 600 # seconds
+  threads: 10
+  ping_interval: 1200 # seconds
   database_url: "sqlite://database/database.sqlite3" # SQlite or postgres, e.g. sqlite://database.db or postgres://user:password@localhost/dbname
   skip_logged_accounts: true
   shuffle_accounts: true
   check_uniqueness_of_proxies: true
   disable_auto_proxy_change: false # disable automatic proxy change for farming (for example for ISP proxy)
+  use_random_ref_codes_from_db: false # use random referral codes from database instead of fixed ones
 
 
 attempts_and_delay_settings:
   delay_before_start:
-    min: 0 # seconds
-    max: 0 # seconds
+    min: 30 # seconds
+    max: 60 # seconds
 
-  error_delay: 5 # seconds
+  error_delay: 10 # seconds
   max_login_attempts: 5
   max_stats_attempts: 3
   max_farm_attempts: 3
+  max_captcha_attempts: 3
+  max_tasks_attempts: 3
+
+
+captcha_settings:
+  max_captcha_solving_time: 180 # in seconds
+  captcha_service: "2captcha" # options: capsolver, anti_captcha, 2captcha
+
+  capsolver_api_key: ""
+  anti_captcha_api_key: ""
+  two_captcha_api_key: ""
 
 
 redirect_settings:

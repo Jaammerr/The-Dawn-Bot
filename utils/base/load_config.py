@@ -78,6 +78,7 @@ class ConfigLoader:
     def _parse_accounts(
             self,
             filename: str,
+            _type: Literal["default_accounts", "login_accounts"]
     ) -> Generator[Account, None, None]:
         try:
             lines = self._read_file(self.data_path / filename, allow_empty=True)
@@ -89,14 +90,18 @@ class ConfigLoader:
                         continue
 
                     parts = line.split(":")
-                    if len(parts) == 2:
-                        email, password = parts
-                        yield Account(
-                            email=email.replace(" ", ""),
-                            email_password=password.replace(" ", ""),
-                        )
+                    if _type == "login_accounts":
+                        if len(parts) == 2:
+                            email, password = parts
+                            yield Account(
+                                email=email.replace(" ", ""),
+                                email_password=password.replace(" ", ""),
+                            )
+                        else:
+                            raise ConfigurationError(f"Invalid account format: {line}")
                     else:
-                        raise ConfigurationError(f"Invalid account format: {line}")
+                        email = parts[0].replace(" ", "")
+                        yield Account(email=email)
 
                 except (ValueError, IndexError):
                     logger.warning(f"Invalid account format: {line} | File: {filename}")
@@ -140,19 +145,19 @@ class ConfigLoader:
             params = self._load_yaml()
             proxies = self._parse_proxies()
 
-            accounts_to_farm = list(self._parse_accounts("farm_accounts.txt"))
-            accounts_to_export_stats = list(self._parse_accounts("export_stats_accounts.txt"))
-            # accounts_to_complete_tasks = list(self._parse_accounts("complete_tasks_accounts.txt"))
-            accounts_to_login = list(self._parse_accounts("login_accounts.txt"))
+            accounts_to_farm = list(self._parse_accounts("farm_accounts.txt", "default_accounts"))
+            accounts_to_export_stats = list(self._parse_accounts("export_stats_accounts.txt", "default_accounts"))
+            accounts_to_complete_tasks = list(self._parse_accounts("complete_tasks_accounts.txt", "default_accounts"))
+            accounts_to_login = list(self._parse_accounts("login_accounts.txt", "login_accounts"))
             referral_codes = self._parse_referral_codes()
 
             if not any([
                 accounts_to_farm,
                 accounts_to_login,
                 accounts_to_export_stats,
-                # accounts_to_complete_tasks
+                accounts_to_complete_tasks
             ]):
-                raise ConfigurationError("No accounts found in files: login_accounts.txt, farm_accounts.txt, export_stats_accounts.txt, complete_tasks_accounts.txt | Please add accounts to the files")
+                raise ConfigurationError("No accounts found in any of the account files.")
 
             use_single_imap = params["imap_settings"]["use_single_imap"]["enable"]
             single_imap_server = params["imap_settings"].get("use_single_imap", {}).get("imap_server")
@@ -162,7 +167,7 @@ class ConfigLoader:
                 *accounts_to_farm,
                 *accounts_to_login,
                 *accounts_to_export_stats,
-                # *accounts_to_complete_tasks,
+                *accounts_to_complete_tasks,
             ]
 
             if use_single_imap:
@@ -177,7 +182,7 @@ class ConfigLoader:
                 accounts_to_login=accounts_to_login,
                 accounts_to_farm=accounts_to_farm,
                 accounts_to_export_stats=accounts_to_export_stats,
-                # accounts_to_complete_tasks=accounts_to_complete_tasks,
+                accounts_to_complete_tasks=accounts_to_complete_tasks,
                 proxies=proxies,
                 referral_codes=referral_codes,
             )

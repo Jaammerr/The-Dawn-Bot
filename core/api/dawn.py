@@ -7,18 +7,17 @@ from typing import Literal
 
 from curl_cffi.requests import AsyncSession, Response
 from utils.processing.handlers import require_extension_token, require_session_token, require_privy_auth_token
-from core.exceptions.base import APIError, SessionRateLimited, ServerError, ProxyForbidden
-
+from core.exceptions.base import APIError, SessionRateLimited, ServerError, ProxyForbidden, APIErrorType
 
 
 class APIClient:
     def __init__(self, proxy: str = None):
         self.proxy = proxy
         self.session = self._create_session()
-        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
 
     def _create_session(self) -> AsyncSession:
-        session = AsyncSession(impersonate="chrome131", verify=False)
+        session = AsyncSession(impersonate="chrome116", verify=False)
         session.timeout = 30
 
         if self.proxy:
@@ -55,7 +54,8 @@ class APIClient:
                 )
 
             elif "message" in str(response_data):
-                if response_data.get("message") in ["Invalid token", "Custom domain user limit exceeded"]:
+                list_errors = APIErrorType._value2member_map_.keys()
+                if response_data.get("message") in list_errors:
                     raise APIError(
                         f"API returned an error: {response_data}", response_data
                     )
@@ -78,7 +78,7 @@ class APIClient:
         return_full_response: bool = False,
         max_retries: int = 2,
         retry_delay: float = 3.0,
-    ):
+    ) -> dict | str | Response:
         for attempt in range(max_retries):
             try:
                 if request_type == "POST":
@@ -156,23 +156,21 @@ class DawnExtensionAPI(APIClient):
         self.session_token = session_token
         self.extension_token = extension_token
 
-    async def init_auth(self, email: str) -> dict:
+    async def init_auth(self, email: str, captcha_token: str) -> dict:
         headers = {
-            'Host': 'auth.privy.io',
-            'Connection': 'keep-alive',
-            'privy-client': 'react-auth:2.24.0',
-            'privy-ui': 't',
-            'privy-app-id': 'cmfb724md0057la0bs4tg0vf1',
+            'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
             'User-Agent': self.user_agent,
             'accept': 'application/json',
-            'privy-ca-id': str(uuid.uuid4()),
-            'Origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
-            'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
             'content-type': 'application/json',
+            'privy-app-id': 'cmfb724md0057la0bs4tg0vf1',
+            'privy-ca-id': str(uuid.uuid4()),
+            'privy-client': 'react-auth:3.10.0-beta-20251223041507',
         }
 
         json_data = {
             'email': email,
+            'token': captcha_token,
         }
 
         return await self.send_request(
@@ -184,16 +182,14 @@ class DawnExtensionAPI(APIClient):
 
     async def authenticate(self, email: str, code: str) -> dict:
         headers = {
-            'Host': 'auth.privy.io',
-            'Connection': 'keep-alive',
-            'privy-client': 'react-auth:2.24.0',
-            'privy-app-id': 'cmfb724md0057la0bs4tg0vf1',
+            'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
             'User-Agent': self.user_agent,
             'accept': 'application/json',
-            'privy-ca-id': str(uuid.uuid4()),
-            'Origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
-            'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
             'content-type': 'application/json',
+            'privy-app-id': 'cmfb724md0057la0bs4tg0vf1',
+            'privy-ca-id': str(uuid.uuid4()),
+            'privy-client': 'react-auth:3.10.0-beta-20251223041507',
         }
 
         json_data = {
@@ -210,16 +206,36 @@ class DawnExtensionAPI(APIClient):
         )
 
 
+    async def accept_terms(self, privy_access_token: str) -> dict:
+        headers = {
+            'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'User-Agent': self.user_agent,
+            'accept': 'application/json',
+            'authorization': f'Bearer {privy_access_token}',
+            'privy-app-id': 'cmfb724md0057la0bs4tg0vf1',
+            'privy-ca-id': str(uuid.uuid4()),
+            'privy-client': 'react-auth:3.10.0-beta-20251223041507',
+        }
+
+        json_data = {}
+
+        return await self.send_request(
+            url='https://auth.privy.io/api/v1/users/me/accept_terms',
+            request_type='POST',
+            json_data=json_data,
+            headers=headers,
+        )
+
+
     @require_session_token
     async def extension_auth(self) -> dict:
         headers = {
-            'Host': 'api.dawninternet.com',
-            'Connection': 'keep-alive',
-            'x-privy-token': self.session_token,
-            'User-Agent': self.user_agent,
             'Accept': 'application/json, text/plain, */*',
-            'Origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
             'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'User-Agent': self.user_agent,
+            'x-privy-token': self.session_token,
         }
 
         params = {
@@ -240,14 +256,13 @@ class DawnExtensionAPI(APIClient):
     @require_extension_token
     async def request_user_info(self, user_id: str) -> dict:
         headers = {
-            'Host': 'api.dawninternet.com',
-            'Connection': 'keep-alive',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
-            'Authorization': f'Bearer {self.extension_token}',
             'Accept': '*/*',
-            'Origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
             'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Authorization': f'Bearer {self.extension_token}',
+            'Connection': 'keep-alive',
             'Content-Type': 'application/json',
+            'Origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'User-Agent': self.user_agent,
         }
 
         params = {
@@ -265,14 +280,12 @@ class DawnExtensionAPI(APIClient):
     @require_extension_token
     async def extension_ping(self, user_id: str, extension_id: str = "fpdkjdnhkakefebpekbdhillbhonfjjp") -> dict:
         headers = {
-            'Host': 'api.dawninternet.com',
-            'Connection': 'keep-alive',
-            'User-Agent': self.user_agent,
-            'Authorization': f'Bearer {self.extension_token}',
             'Accept': '*/*',
-            'Origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
             'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Authorization': f'Bearer {self.extension_token}',
             'Content-Type': 'application/json',
+            'Origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'User-Agent': self.user_agent,
         }
 
         params = {
@@ -392,3 +405,123 @@ class DawnExtensionAPI(APIClient):
             json_data=json_data,
             headers=headers,
         )
+
+
+    @require_session_token
+    async def generate_referral_code(self):
+        headers = {
+            'accept': 'application/json, text/plain, */*',
+            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'user-agent': self.user_agent,
+            'x-privy-token': self.session_token,
+        }
+
+        json_data = {}
+
+        return await self.send_request(
+            url='https://api.dawninternet.com/referral/generate',
+            request_type='POST',
+            headers=headers,
+            json_data=json_data,
+        )
+
+
+    @require_session_token
+    async def my_referral_code(self) -> str:
+        headers = {
+            'accept': 'application/json, text/plain, */*',
+            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'user-agent': self.user_agent,
+            'x-privy-token': self.session_token,
+        }
+
+        response = await self.send_request(
+            url='https://api.dawninternet.com/referral/my-code',
+            request_type='GET',
+            headers=headers,
+            verify=False,
+            return_full_response=True
+        )
+
+        if response.status_code == 404:
+            referral_data = await self.generate_referral_code()
+            return referral_data["code"]
+        else:
+            return response.json()["code"]
+
+
+    @require_session_token
+    async def apply_referral_code(self, referral_code: str) -> None:
+        headers = {
+            'accept': 'application/json, text/plain, */*',
+            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'user-agent': self.user_agent,
+            'x-privy-token': self.session_token,
+        }
+
+        json_data = {
+            'referralCode': referral_code,
+        }
+
+        response = await self.send_request(
+            url='https://api.dawninternet.com/referral/use',
+            request_type='POST',
+            headers=headers,
+            json_data=json_data,
+            verify=False,
+            return_full_response=True
+        )
+
+        data = response.json()
+        if not data.get("success"):
+            raise APIError("Could not apply referral code", data)
+
+
+    @require_session_token
+    async def complete_task(self, platform: str) -> dict:
+        headers = {
+            'accept': 'application/json, text/plain, */*',
+            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'content-type': 'application/json',
+            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'user-agent': self.user_agent,
+            'x-privy-token': self.session_token,
+        }
+
+        json_data = {
+            'platform': platform,
+        }
+
+        response = await self.send_request(
+            url='https://api.dawninternet.com/social/claim',
+            request_type='POST',
+            headers=headers,
+            json_data=json_data,
+        )
+
+        if not response.get("awarded", False) is True:
+            raise APIError("Could not complete task", response)
+
+        return response
+
+
+    @require_session_token
+    async def request_completed_tasks(self) -> list[str]:
+        headers = {
+            'accept': 'application/json, text/plain, */*',
+            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'origin': 'chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp',
+            'user-agent': self.user_agent,
+            'x-privy-token': self.session_token,
+        }
+
+        response = await self.send_request(
+            url='https://api.dawninternet.com/social/claims',
+            request_type='GET',
+            headers=headers,
+        )
+
+        return response["claimed"]

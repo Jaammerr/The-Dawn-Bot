@@ -18,7 +18,7 @@ class ApplicationManager:
         self.module_map = {
             "login": (config.accounts_to_login, self._execute_module_for_accounts),
             "farm": (config.accounts_to_farm, self._farm_continuously),
-            # "complete_tasks": (config.accounts_to_complete_tasks, self._execute_module_for_accounts),
+            "complete_tasks": (config.accounts_to_complete_tasks, self._execute_module_for_accounts),
             "export_stats": (config.accounts_to_export_stats, self._execute_module_for_accounts),
         }
 

@@ -150,17 +150,17 @@ class FileOperations:
                 if result["status"] is True:
                     row = [
                         result["email"],
-                        result["email_password"],
+                        str(result["email_password"]),
                         result["data"]["user_info"]["points"],
                         result["data"]["referral_stats"]["referralCode"],
                         result["data"]["referral_stats"]["totalReferrals"],
                         result["data"]["referral_stats"]["totalPointsEarned"],
-                        False,
+                        result["data"]["tasks_completed"],
                     ]
                 else:
                     row = [
                         result["email"],
-                        result["email_password"],
+                        str(result["email_password"]),
                         "N/A",
                         "N/A",
                         "N/A",

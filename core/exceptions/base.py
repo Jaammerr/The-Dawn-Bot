@@ -8,6 +8,7 @@ class APIErrorType(Enum):
     PING_INTERVAL_VIOLATION = "Ping interval violation"
     DOMAIN_LIMIT_EXCEEDED = "Custom domain user limit exceeded"
     TOO_MANY_USERS_FROM_THIS_IP = "Too many users from this IP"
+    TOO_MANY_REQUESTS = "Too many requests. Please wait to try again."
 
 
 class APIError(Exception):
