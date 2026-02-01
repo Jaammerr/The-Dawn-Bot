@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Literal
 
+import httpx
 from curl_cffi.requests import AsyncSession, Response
 from utils.processing.handlers import require_extension_token, require_session_token, require_privy_auth_token
 from core.exceptions.base import APIError, SessionRateLimited, ServerError, ProxyForbidden, APIErrorType
@@ -173,12 +174,25 @@ class DawnExtensionAPI(APIClient):
             'token': captcha_token,
         }
 
-        return await self.send_request(
-            url='https://auth.privy.io/api/v1/passwordless/init',
-            request_type='POST',
-            json_data=json_data,
-            headers=headers,
-        )
+        # return await self.send_request(
+        #     url='https://auth.privy.io/api/v1/passwordless/init',
+        #     request_type='POST',
+        #     json_data=json_data,
+        #     headers=headers,
+        # )
+
+        # Implementation via httpx to avoid issues with Privy, while its blocking requests from curl-cffi by TLS fingerprinting
+        proxy = self.proxy
+        async with httpx.AsyncClient(proxy=proxy) as client:
+            response = await client.post(
+                url='https://auth.privy.io/api/v1/passwordless/init',
+                json=json_data,
+                headers=headers,
+                timeout=30,
+            )
+            response_data = response.json()
+            await self._verify_response(response_data)
+            return response_data
 
     async def authenticate(self, email: str, code: str) -> dict:
         headers = {
