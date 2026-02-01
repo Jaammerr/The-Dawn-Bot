@@ -12,7 +12,7 @@ captcha_solver = CapsolverSolver(
     api_key=config.captcha_settings.capsolver_api_key,
     max_attempts=config.captcha_settings.max_captcha_solving_time // 3,
     base_url="https://api.capsolver.com"
-) if config.captcha_settings.captcha_service == "solvium" else AntiCaptchaSolver(
+) if config.captcha_settings.captcha_service == "capsolver" else AntiCaptchaSolver(
     api_key=config.captcha_settings.anti_captcha_api_key,
     max_attempts=config.captcha_settings.max_captcha_solving_time // 3,
     base_url="https://api.anti-captcha.com"
