@@ -8,7 +8,7 @@ class OnyxCaptchaSolver:
     def __init__(
         self,
         api_key: str,
-        base_url: str = "https://onyxsolver.com",
+        base_url: str = "https://onyxsolver.io",
         max_attempts: int = 60,
         poll_interval: float = 3.0,
         timeout: float = 30.0,
