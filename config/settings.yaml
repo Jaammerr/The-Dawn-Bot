@@ -4,7 +4,7 @@
 
 
 application_settings:
-  threads: 10
+  threads: 2
   ping_interval: 1200 # seconds
   database_url: "sqlite://database/database.sqlite3" # SQlite or postgres, e.g. sqlite://database.db or postgres://user:password@localhost/dbname
   skip_logged_accounts: true
@@ -16,8 +16,8 @@ application_settings:
 
 attempts_and_delay_settings:
   delay_before_start:
-    min: 30 # seconds
-    max: 60 # seconds
+    min: 0 # seconds
+    max: 0 # seconds
 
   error_delay: 10 # seconds
   max_login_attempts: 5
@@ -29,18 +29,14 @@ attempts_and_delay_settings:
 
 captcha_settings:
   max_captcha_solving_time: 180 # in seconds
-  captcha_service: "2captcha" # options: capsolver, anti_captcha, 2captcha
-
-  capsolver_api_key: ""
-  anti_captcha_api_key: ""
-  two_captcha_api_key: ""
+  onyx_api_key: "" # ONYX captcha solving service API key
 
 
 redirect_settings:
   enabled: false
   email: ""
   password: ""
-  imap_server: ""
+  imap_server: "imap.mail.me.com"
   use_proxy: false
 
 

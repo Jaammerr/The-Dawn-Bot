@@ -71,12 +71,8 @@ class ApplicationSettings:
 
 @dataclass
 class CaptchaSettings:
-    captcha_service: str = ""
+    onyx_api_key: str = ""
     max_captcha_solving_time: PositiveInt = 180
-
-    capsolver_api_key: str = ""
-    anti_captcha_api_key: str = ""
-    two_captcha_api_key: str = ""
 
 
 class Config(BaseConfig):

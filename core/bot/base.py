@@ -156,14 +156,14 @@ class Bot:
         max_attempts = config.attempts_and_delay_settings.max_captcha_attempts
 
         async def handle_turnistale() -> Optional[str]:
-            logger.info(f"Account: {email} | Solving Cloudflare captcha | Attempt: {attempt + 1}/{max_attempts}")
+            logger.info(f"Account: {email} | Solving Hcaptcha captcha | Attempt: {attempt + 1}/{max_attempts}")
 
-            success, result = await captcha_solver.solve_cloudflare(
-                page_url="https://auth.privy.io",
-                site_key="0x4AAAAAAAM8ceq5KhP1uJBt",
+            success, result = await captcha_solver.solve(
+                website_url="https://auth.privy.io",
+                website_key="b9fc5a50-2e5c-457a-9582-80ce342c2534",
             )
             if success:
-                logger.success(f"Account: {email} | Cloudflare captcha solved")
+                logger.success(f"Account: {email} | Hcaptcha captcha solved")
                 return result
 
             raise ValueError(f"{result}")
@@ -173,10 +173,10 @@ class Bot:
                 return await handle_turnistale()
             except Exception as e:
                 logger.error(
-                    f"Account: {email} | Error occurred while solving Cloudflare captcha: {str(e)} | Retrying..."
+                    f"Account: {email} | Error occurred while solving Hcaptcha: {str(e)} | Retrying..."
                 )
                 if attempt == max_attempts - 1:
-                    raise CaptchaSolvingFailed(f"Failed to solve Cloudflare captcha after {max_attempts} attempts")
+                    raise CaptchaSolvingFailed(f"Failed to solve Hcaptcha captcha after {max_attempts} attempts")
 
     async def get_invite_code(self) -> Optional[str]:
         use_db = config.application_settings.use_random_ref_codes_from_db
